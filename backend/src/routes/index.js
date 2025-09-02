@@ -1,12 +1,14 @@
 import express from "express";
-import shareRoutes from "./shareRoutes.js";
 import locationRoutes from "./locationRoutes.js";
-import rewardRoutes from "./rewardRoutes.js";
+import authRoutes from "./authRoutes.js";
+import busRoutes from "./busRoutes.js";
+import pointsRoutes from "./pointsRoutes.js";
 
 const router = express.Router();
 
-router.use("/share", shareRoutes);
 router.use("/location", locationRoutes);
-router.use("/reward", rewardRoutes);
+router.use("/auth", authRoutes);
+router.use("/bus", busRoutes);
+router.use("/points", pointsRoutes);
 
 export default router;

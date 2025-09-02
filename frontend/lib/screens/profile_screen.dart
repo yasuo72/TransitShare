@@ -36,36 +36,36 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _avatar(),
+            _avatar(context),
             const SizedBox(height: 12),
-            const Text('Alex Chen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
-            const Text('Route 78 Driver', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text('Alex Chen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: MediaQuery.of(context).size.width * 0.05)),
+            Text('Route 78 Driver', style: TextStyle(color: Colors.white70, fontSize: MediaQuery.of(context).size.width * 0.035)),
             const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.circle, size: 8, color: Color(0xFF26C281)),
+              children: [
+                const Icon(Icons.circle, size: 8, color: Color(0xFF26C281)),
                 SizedBox(width: 4),
-                Text('Active', style: TextStyle(color: Color(0xFF26C281), fontSize: 12)),
+                Text('Active', style: TextStyle(color: Color(0xFF26C281), fontSize: MediaQuery.of(context).size.width * 0.035)),
               ],
             ),
             const SizedBox(height: 24),
-            _statsRow(),
+            _statsRow(context),
             const SizedBox(height: 24),
-            _walletCard(),
+            _walletCard(context),
             const SizedBox(height: 24),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text('Recent Activity', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+              child: Text('Recent Activity', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.04)),
             ),
             const SizedBox(height: 12),
-            _activityItem(Icons.attach_money, 'Tip received', '+\$2.00', 'From passenger on Route 78', '2h ago', color: const Color(0xFF26C281)),
+            _activityItem(context, Icons.attach_money, 'Tip received', '+\$2.00', 'From passenger on Route 78', '2h ago', color: const Color(0xFF26C281)),
             const SizedBox(height: 8),
-            _activityItem(Icons.location_on, 'Location shared', '+15 pts', '45 minutes on Route 78', '5h ago', color: const Color(0xFF7A2CF0)),
+            _activityItem(context, Icons.location_on, 'Location shared', '+15 pts', '45 minutes on Route 78', '5h ago', color: const Color(0xFF7A2CF0)),
             const SizedBox(height: 24),
-            _settingsTile('Settings', Icons.settings),
+            _settingsTile(context, 'Settings', Icons.settings),
             const SizedBox(height: 8),
-            _settingsTile('Sign Out', Icons.logout, danger: true),
+            _settingsTile(context, 'Sign Out', Icons.logout, danger: true),
           ],
         ),
       ),
@@ -73,27 +73,27 @@ class ProfileScreen extends StatelessWidget {
   );
   }
 
-  Widget _avatar() {
+  Widget _avatar(BuildContext context) {
     return Container(
-      width: 96,
-      height: 96,
+      width: MediaQuery.of(context).size.width * 0.25,
+      height: MediaQuery.of(context).size.width * 0.25,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(colors: [Color(0xFF19C6FF), Color(0xFF7A2CF0)]),
       ),
-      child: const Center(
-        child: Text('AC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 24)),
+      child: Center(
+        child: Text('AC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: MediaQuery.of(context).size.width * 0.08)),
       ),
     );
   }
 
-  Widget _statsRow() {
+  Widget _statsRow(BuildContext context) {
     Widget stat(String value, String label) => Expanded(
           child: Column(
             children: [
-              Text(value, style: const TextStyle(color: Color(0xFF19C6FF), fontWeight: FontWeight.w700)),
+              Text(value, style: TextStyle(color: Color(0xFF19C6FF), fontWeight: FontWeight.w700, fontSize: MediaQuery.of(context).size.width * 0.04)),
               const SizedBox(height: 4),
-              Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+              Text(label, textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.03)),
             ],
           ),
         );
@@ -107,12 +107,12 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _walletCard() {
+  Widget _walletCard(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
       decoration: BoxDecoration(
         color: const Color(0xFF001021),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.03),
         border: Border.all(color: const Color(0xFF19C6FF)),
       ),
       child: Column(
@@ -120,23 +120,23 @@ class ProfileScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('Wallet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              Text('Wallet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.045)),
               const Spacer(),
-              IconButton(icon: const Icon(Icons.add, color: Colors.white54, size: 18), onPressed: () {}),
+              IconButton(icon: Icon(Icons.add, color: Colors.white54, size: MediaQuery.of(context).size.width * 0.05), onPressed: () {}),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.015),
           Row(
             children: const [
               Expanded(
-                child: _walletStat('Available Balance', '\$12.50', Color(0xFF26C281)),
+                child: _WalletStat('Available Balance', '\$12.50', Color(0xFF26C281)),
               ),
               Expanded(
-                child: _walletStat('Pending Points', '45 pts', Color(0xFF7A2CF0)),
+                child: _WalletStat('Pending Points', '45 pts', Color(0xFF7A2CF0)),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.02),
           Row(
             children: [
               Expanded(
@@ -146,14 +146,14 @@ class ProfileScreen extends StatelessWidget {
                   onPressed: () {},
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: MediaQuery.of(context).size.width * 0.03),
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {},
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF19C6FF)),
                   ),
-                  child: const Text('Redeem', style: TextStyle(color: Color(0xFF19C6FF))),
+                  child: Text('Redeem', style: TextStyle(color: Color(0xFF19C6FF), fontSize: MediaQuery.of(context).size.width * 0.035)),
                 ),
               ),
             ],
@@ -163,31 +163,31 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _activityItem(IconData icon, String title, String value, String sub, String time, {required Color color}) {
+  Widget _activityItem(BuildContext context, IconData icon, String title, String value, String sub, String time, {required Color color}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.03),
       decoration: BoxDecoration(
         color: const Color(0xFF001021),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.025),
       ),
       child: Row(
         children: [
-          CircleAvatar(radius: 14, backgroundColor: color.withOpacity(0.2), child: Icon(icon, color: color, size: 16)),
-          const SizedBox(width: 12),
+          CircleAvatar(radius: MediaQuery.of(context).size.width * 0.04, backgroundColor: color.withOpacity(0.2), child: Icon(icon, color: color, size: MediaQuery.of(context).size.width * 0.045)),
+          SizedBox(width: MediaQuery.of(context).size.width * 0.03),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                Text(sub, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                Text(title, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.035)),
+                Text(sub, style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.03)),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
-              Text(time, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+              Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.035)),
+              Text(time, style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.025)),
             ],
           ),
         ],
@@ -195,32 +195,32 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _settingsTile(String title, IconData icon, {bool danger = false}) {
+  Widget _settingsTile(BuildContext context, String title, IconData icon, {bool danger = false}) {
     return ListTile(
       tileColor: danger ? Colors.transparent : const Color(0xFF001021),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      title: Text(title, style: TextStyle(color: danger ? const Color(0xFFFF4D4F) : Colors.white)),
-      leading: Icon(icon, color: danger ? const Color(0xFFFF4D4F) : Colors.white54),
-      trailing: danger ? null : const Icon(Icons.chevron_right, color: Colors.white54),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.02)),
+      title: Text(title, style: TextStyle(color: danger ? const Color(0xFFFF4D4F) : Colors.white, fontSize: MediaQuery.of(context).size.width * 0.04)),
+      leading: Icon(icon, color: danger ? const Color(0xFFFF4D4F) : Colors.white54, size: MediaQuery.of(context).size.width * 0.05),
+      trailing: danger ? null : Icon(Icons.chevron_right, color: Colors.white54, size: MediaQuery.of(context).size.width * 0.05),
       onTap: () {},
     );
   }
 }
 
-class _walletStat extends StatelessWidget {
+class _WalletStat extends StatelessWidget {
   final String label;
   final String value;
   final Color valueColor;
-  const _walletStat(this.label, this.value, this.valueColor);
+  const _WalletStat(this.label, this.value, this.valueColor);
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+        Text(label, style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.03)),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w600)),
+        Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.04)),
       ],
     );
   }

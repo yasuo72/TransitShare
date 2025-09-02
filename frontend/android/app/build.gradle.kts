@@ -6,9 +6,17 @@ plugins {
 }
 
 android {
+    buildFeatures {
+        buildConfig = true
+    }
+    defaultConfig {
+        // Mapbox Configuration
+        manifestPlaceholders["MAPBOX_DOWNLOADS_TOKEN"] = project.findProperty("MAPBOX_DOWNLOADS_TOKEN") as? String ?: ""
+        buildConfigField("String", "MAPBOX_ACCESS_TOKEN", '"' + (System.getenv("MAPBOX_ACCESS_TOKEN") ?: "") + '"')
+    }
     namespace = "com.example.transit_share"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -37,6 +45,17 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("com.google.android.gms:play-services-location:21.0.1")
+    }
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.22")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }
 
 flutter {

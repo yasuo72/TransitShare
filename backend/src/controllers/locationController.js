@@ -1,54 +1,53 @@
-import Bus from "../models/Bus.js";
-import { predictBusLocation } from "../services/predictService.js";
+import LocationSharing from '../models/locationSharingModel.js';
+import Bus from '../models/busModel.js';
 
-// POST /location/update
-export const updateLocation = async (req, res) => {
-  try {
-    const { busID, lat, lng, speed } = req.body;
-    if (!busID || lat == null || lng == null)
-      return res.status(400).json({ message: "Missing params" });
+// @desc    Share location
+// @route   POST /api/share-location
+// @access  Private
+const shareLocation = async (req, res) => {
+  const { busId, lat, lng } = req.body;
+  const userId = req.user._id;
 
-    let bus = await Bus.findOne({ busID });
-    if (!bus)
-      return res.status(404).json({ message: "Bus not found, start sharing first" });
+  // Store location in LocationSharing collection
+  await LocationSharing.create({
+    busId,
+    userId,
+    currentLocation: { lat, lng },
+  });
 
-    bus.lastKnownLocation = { lat, lng };
-    bus.lastUpdated = new Date();
-    if (speed) bus.avgSpeed = speed;
+  // Update bus's main location
+  const bus = await Bus.findById(busId);
+  if (bus) {
+    bus.currentLocation = { lat, lng };
+    bus.isActive = true;
     await bus.save();
 
-    // broadcast via socket
-    const io = req.app.get("io");
-    io.emit(`bus:${busID}:location`, { lat, lng, ts: bus.lastUpdated });
+    // Broadcast via Socket.IO
+    const io = req.app.get('io');
+    io.emit('locationUpdate', {
+      busId,
+      lat,
+      lng,
+      updatedAt: new Date(),
+    });
 
-    res.json({ message: "Location updated" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(201).json({ message: 'Location shared successfully' });
+  } else {
+    res.status(404).json({ message: 'Bus not found' });
   }
 };
 
-// GET /bus/:busID/location
-export const getBusLocation = async (req, res) => {
-  try {
-    const { busID } = req.params;
-    const bus = await Bus.findOne({ busID });
-    if (!bus) return res.status(404).json({ message: "Bus not found" });
+// @desc    Track a bus
+// @route   GET /api/track/:busId
+// @access  Public
+const trackBus = async (req, res) => {
+  const bus = await Bus.findById(req.params.busId);
 
-    // if active sharers exist and updated within 20s consider live
-    const isLive = bus.activeSharers.length > 0 && bus.lastUpdated && (Date.now() - bus.lastUpdated.getTime()) < 20000;
-
-    if (isLive) {
-      return res.json({ source: "live", location: bus.lastKnownLocation, ts: bus.lastUpdated });
-    }
-
-    // else use prediction
-    const prediction = await predictBusLocation(bus);
-    if (!prediction) return res.status(404).json({ message: "No prediction available" });
-
-    return res.json({ source: "predicted", ...prediction });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+  if (bus && bus.isActive) {
+    res.json(bus.currentLocation);
+  } else {
+    res.status(404).json({ message: 'Bus not found or is not active' });
   }
 };
+
+export { shareLocation, trackBus };

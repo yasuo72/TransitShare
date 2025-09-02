@@ -8,6 +8,7 @@ import 'screens/track_vehicle_screen.dart';
 import 'screens/rewards_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/full_map_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,7 @@ class TransitShareApp extends StatelessWidget {
         '/rewards': (_) => const RewardsScreen(),
         '/profile': (_) => const ProfileScreen(),
         '/notifications': (_) => const NotificationsScreen(),
+        '/map_full': (_) => const FullMapScreen(),
       },
     );
   }

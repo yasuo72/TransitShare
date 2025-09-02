@@ -19,7 +19,7 @@ class RewardsScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF000817),
       appBar: AppBar(
         backgroundColor: const Color(0xFF000817),
-        title: const Text('Rewards', style: TextStyle(color: Colors.white)),
+        title: Text('Rewards', style: TextStyle(color: Colors.white, fontSize: MediaQuery.of(context).size.width * 0.05)),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -41,23 +41,23 @@ class RewardsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _balanceCard(),
+            _balanceCard(context),
             const SizedBox(height: 16),
-            _progressBar('Weekly Goal', 45, 50, color: const Color(0xFF7A2CF0)),
+            _progressBar(context, 'Weekly Goal', 45, 50, color: const Color(0xFF7A2CF0)),
             const SizedBox(height: 12),
-            _progressBar('Monthly Challenge', 180, 200),
+            _progressBar(context, 'Monthly Challenge', 180, 200),
             const SizedBox(height: 24),
-            const Text('Achievements', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            Text('Achievements', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.045)),
             const SizedBox(height: 12),
-            _achievementsRow(),
+            _achievementsRow(context),
             const SizedBox(height: 24),
-            const Text('Weekly Leaderboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            Text('Weekly Leaderboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.045)),
             const SizedBox(height: 12),
-            _leaderItem(1, 'Sarah M.', 'Route 15 Driver', 485, highlight: false),
+            _leaderItem(context, 1, 'Sarah M.', 'Route 15 Driver', 485, highlight: false),
             const SizedBox(height: 8),
-            _leaderItem(2, 'Mike R.', 'Route 42 Driver', 420, highlight: false),
+            _leaderItem(context, 2, 'Mike R.', 'Route 42 Driver', 420, highlight: false),
             const SizedBox(height: 8),
-            _leaderItem(3, 'You', 'Route 78 Driver', 250, highlight: true),
+            _leaderItem(context, 3, 'You', 'Route 78 Driver', 250, highlight: true),
             const SizedBox(height: 32),
             GradientButton(text: 'Redeem Points', onPressed: () {}),
             ],
@@ -67,25 +67,25 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _balanceCard() {
+  Widget _balanceCard(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.05),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.03),
         color: const Color(0xFF001021),
         border: Border.all(color: const Color(0xFF19C6FF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('250 Points', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20)),
-          const SizedBox(height: 4),
-          const Text('Your current balance', style: TextStyle(color: Colors.white54)),
-          const SizedBox(height: 16),
+          Text('250 Points', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: MediaQuery.of(context).size.width * 0.06)),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.005),
+          Text('Your current balance', style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.04)),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.02),
           Row(
             children: const [
-              Expanded(child: _stat('+45', 'This Week')),
-              Expanded(child: _stat('+12', 'Today')),
+              const Expanded(child: _Stat('+45', 'This Week')),
+              const Expanded(child: _Stat('+12', 'Today')),
             ],
           ),
         ],
@@ -93,23 +93,23 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _progressBar(String label, int value, int total, {Color color = const Color(0xFF19C6FF)}) {
+  Widget _progressBar(BuildContext context, String label, int value, int total, {Color color = const Color(0xFF19C6FF)}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(color: Colors.white70)),
-            Text('$value/$total pts', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(label, style: TextStyle(color: Colors.white70, fontSize: MediaQuery.of(context).size.width * 0.035)),
+            Text('$value/$total pts', style: TextStyle(color: Colors.white70, fontSize: MediaQuery.of(context).size.width * 0.03)),
           ],
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: MediaQuery.of(context).size.height * 0.005),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.01),
           child: LinearProgressIndicator(
             value: value / total,
-            minHeight: 6,
+            minHeight: MediaQuery.of(context).size.height * 0.008,
             valueColor: AlwaysStoppedAnimation<Color>(color),
             backgroundColor: Colors.white10,
           ),
@@ -118,20 +118,20 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _achievementsRow() {
-    Widget badge(String title, IconData icon, {bool locked = false}) => Container(
-          width: 92,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+  Widget _achievementsRow(BuildContext context) {
+        Widget badge(String title, IconData icon, {bool locked = false}) => Container(
+          width: MediaQuery.of(context).size.width * 0.28,
+          padding: EdgeInsets.symmetric(vertical: MediaQuery.of(context).size.height * 0.02),
           decoration: BoxDecoration(
             color: locked ? Colors.white12 : const Color(0xFF001021),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.03),
             border: Border.all(color: const Color(0xFF19C6FF)),
           ),
           child: Column(
             children: [
-              Icon(icon, color: locked ? Colors.white24 : const Color(0xFF19C6FF)),
-              const SizedBox(height: 6),
-              Text(title, textAlign: TextAlign.center, style: TextStyle(color: locked ? Colors.white24 : Colors.white, fontSize: 11)),
+              Icon(icon, color: locked ? Colors.white24 : const Color(0xFF19C6FF), size: MediaQuery.of(context).size.width * 0.08),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.0075),
+              Text(title, textAlign: TextAlign.center, style: TextStyle(color: locked ? Colors.white24 : Colors.white, fontSize: MediaQuery.of(context).size.width * 0.03)),
             ],
           ),
         );
@@ -139,58 +139,58 @@ class RewardsScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        badge('Route Hero', Icons.shield_outlined),
+        badge( 'Route Hero', Icons.shield_outlined),
         badge('Night Tracker', Icons.nightlight_outlined),
         badge('Locked', Icons.lock, locked: true),
       ],
     );
   }
 
-  Widget _leaderItem(int rank, String name, String sub, int pts, {bool highlight = false}) {
+  Widget _leaderItem(BuildContext context, int rank, String name, String sub, int pts, {bool highlight = false}) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF001021),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.025),
         border: highlight ? Border.all(color: const Color(0xFF19C6FF)) : null,
       ),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      padding: EdgeInsets.symmetric(vertical: MediaQuery.of(context).size.height * 0.015, horizontal: MediaQuery.of(context).size.width * 0.03),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 14,
+            radius: MediaQuery.of(context).size.width * 0.04,
             backgroundColor: const Color(0xFF7A2CF0),
-            child: Text(rank.toString(), style: const TextStyle(color: Colors.white, fontSize: 12)),
+            child: Text(rank.toString(), style: TextStyle(color: Colors.white, fontSize: MediaQuery.of(context).size.width * 0.03)),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: MediaQuery.of(context).size.width * 0.03),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                Text(sub, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                Text(name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.04)),
+                Text(sub, style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.03)),
               ],
             ),
           ),
-          Text('$pts pts', style: const TextStyle(color: Color(0xFF19C6FF), fontWeight: FontWeight.w600)),
+          Text('$pts pts', style: TextStyle(color: const Color(0xFF19C6FF), fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.04)),
         ],
       ),
     );
   }
 }
 
-class _stat extends StatelessWidget {
+class _Stat extends StatelessWidget {
   final String value;
   final String label;
-  const _stat(this.value, this.label);
+  const _Stat(this.value, this.label);
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: const TextStyle(color: Color(0xFF19C6FF), fontWeight: FontWeight.w600)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Text(value, style: TextStyle(color: const Color(0xFF19C6FF), fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.04)),
+        SizedBox(height: MediaQuery.of(context).size.height * 0.0025),
+        Text(label, style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.035)),
       ],
     );
   }

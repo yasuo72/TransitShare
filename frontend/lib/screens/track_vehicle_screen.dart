@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/gradient_button.dart';
+import 'package:mapbox_gl/mapbox_gl.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 
 class TrackVehicleScreen extends StatefulWidget {
   const TrackVehicleScreen({super.key});
@@ -10,11 +13,49 @@ class TrackVehicleScreen extends StatefulWidget {
 
 class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
   final _searchController = TextEditingController();
+  MapboxMapController? _mapController;
+  Symbol? _userSymbol;
+  final LatLng _center = const LatLng(28.6139, 77.2090);
+
+  @override
+  void initState() {
+    super.initState();
+    _requestLocationPermission();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _requestLocationPermission() async {
+    if (await Permission.location.request().isGranted) {
+      _goToCurrentUserLocation();
+    }
+  }
+
+  Future<void> _goToCurrentUserLocation() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition();
+      final userLatLng = LatLng(pos.latitude, pos.longitude);
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(userLatLng, 14),
+      );
+      if (_mapController != null) {
+        if (_userSymbol == null) {
+          _userSymbol = await _mapController!.addSymbol(
+            SymbolOptions(
+              geometry: userLatLng,
+              iconImage: 'marker-15',
+              iconSize: 1.5,
+            ),
+          );
+        } else {
+          await _mapController!.updateSymbol(_userSymbol!, SymbolOptions(geometry: userLatLng));
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -80,19 +121,42 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
   }
 
   Widget _buildMapPlaceholder() {
-    return Container(
+    return SizedBox(
       height: 350,
       width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: const Color(0xFF001021),
-        image: const DecorationImage(
-          fit: BoxFit.cover,
-          image: AssetImage('assets/images/map_pattern.png'), // optional pattern asset
-        ),
-      ),
-      child: const Center(
-        child: Icon(Icons.location_on, color: Color(0xFF19C6FF), size: 42),
+      child: Stack(
+        children: [
+          MapboxMap(
+            styleString: MapboxStyles.DARK,
+            myLocationEnabled: false,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              _goToCurrentUserLocation();
+            },
+            initialCameraPosition: CameraPosition(target: _center, zoom: 11),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Column(
+              children: [
+                FloatingActionButton(
+                  heroTag: 'trackZoomIn',
+                  mini: true,
+                  onPressed: () => _mapController?.animateCamera(CameraUpdate.zoomIn()),
+                  child: const Icon(Icons.add),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton(
+                  heroTag: 'trackZoomOut',
+                  mini: true,
+                  onPressed: () => _mapController?.animateCamera(CameraUpdate.zoomOut()),
+                  child: const Icon(Icons.remove),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

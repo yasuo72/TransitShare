@@ -31,7 +31,7 @@ class NotificationsScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF000817),
       appBar: AppBar(
         backgroundColor: const Color(0xFF000817),
-        title: const Text('Notifications', style: TextStyle(color: Colors.white)),
+        title: Text('Notifications', style: TextStyle(color: Colors.white, fontSize: MediaQuery.of(context).size.width * 0.05)),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -45,36 +45,36 @@ class NotificationsScreen extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: AutoHideBottomNav.show,
         child: ListView.separated(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
           itemCount: notifications.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, __) => SizedBox(height: MediaQuery.of(context).size.height * 0.01),
           itemBuilder: (context, idx) {
             final n = notifications[idx];
             return Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.03),
               decoration: BoxDecoration(
                 color: const Color(0xFF001021),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.025),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 16,
+                    radius: MediaQuery.of(context).size.width * 0.05,
                     backgroundColor: const Color(0xFF19C6FF).withOpacity(0.2),
-                    child: Icon(n['icon'] as IconData, color: const Color(0xFF19C6FF), size: 18),
+                    child: Icon(n['icon'] as IconData, color: const Color(0xFF19C6FF), size: MediaQuery.of(context).size.width * 0.055),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: MediaQuery.of(context).size.width * 0.03),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(n['title'] as String, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text(n['subtitle'] as String, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                        Text(n['title'] as String, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: MediaQuery.of(context).size.width * 0.04)),
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.0025),
+                        Text(n['subtitle'] as String, style: TextStyle(color: Colors.white54, fontSize: MediaQuery.of(context).size.width * 0.035)),
                       ],
                     ),
                   ),
-                  Text(n['time'] as String, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                  Text(n['time'] as String, style: TextStyle(color: Colors.white38, fontSize: MediaQuery.of(context).size.width * 0.03)),
                 ],
               ),
             );

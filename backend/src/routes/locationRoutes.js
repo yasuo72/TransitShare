@@ -1,9 +1,10 @@
-import express from "express";
-import { updateLocation, getBusLocation } from "../controllers/locationController.js";
+import express from 'express';
+import { shareLocation, trackBus } from '../controllers/locationController.js';
+import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post("/update", updateLocation);
-router.get("/bus/:busID/location", getBusLocation);
+router.route('/share-location').post(protect, shareLocation);
+router.route('/track/:busId').get(trackBus);
 
 export default router;

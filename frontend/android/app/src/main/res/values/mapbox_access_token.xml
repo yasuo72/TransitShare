@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Mapbox public access token used by mapbox_gl and Maps SDK -->
+    <string name="mapbox_access_token" translatable="false" tools:ignore="UnusedResources">pk.eyJ1IjoieWFzdW83MiIsImEiOiJjbWYzMGc1NnowaGJpMmxzYmgzZG5xYXoyIn0.fIgnlTnPW3Sr6JZmVjhODg</string>
+</resources>
