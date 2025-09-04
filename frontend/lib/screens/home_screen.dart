@@ -3,8 +3,10 @@ import 'package:mapbox_gl/mapbox_gl.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
-import '../widgets/fab_button.dart';
+import '../widgets/gradient_button.dart';
+import '../services/navigation_state_service.dart';
 import '../widgets/auto_hide_bottom_nav.dart';
+import '../widgets/fab_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +27,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _requestLocationPermission();
+    _saveNavigationState();
+  }
+
+  void _saveNavigationState() {
+    // Save that user is on home screen
+    NavigationStateService.saveLastScreen('/home');
+    NavigationStateService.updateLastActiveTime();
   }
 
   void _requestLocationPermission() async {
@@ -265,6 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     FloatingActionButton(
+                      heroTag: 'homeZoomIn',
                       mini: true,
                       onPressed: () {
                         _mapController?.animateCamera(
@@ -275,6 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton(
+                      heroTag: 'homeZoomOut',
                       mini: true,
                       onPressed: () {
                         _mapController?.animateCamera(
@@ -423,6 +434,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        FabButton(
+          icon: Icons.location_on,
+          colors: const [Color(0xFF26C281), Color(0xFF20B2AA)],
+          onPressed: () {
+            Navigator.pushNamed(context, '/location_sharing');
+          },
+        ),
+        const SizedBox(height: 16),
         FabButton(
           icon: Icons.search,
           colors: const [Color(0xFF19C6FF), Color(0xFF00B4FF)],

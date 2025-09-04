@@ -73,6 +73,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
+  file:
+    dependency: transitive
+    description:
+      name: file
+      sha256: a3b4f84adafef897088c160faf7dfffb7696046cb13ae90b508c2cbc95d3b8d4
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.1"
   fixnum:
     dependency: transitive
     description:
@@ -124,12 +132,12 @@ packages:
     dependency: "direct main"
     description:
       name: geolocator
-      sha256: "149876cc5207a0f5daf4fdd3bfcf0a0f27258b3fe95108fa084f527ad0568f1b"
+      sha256: "5c23f3613f50586c0bbb2b8f970240ae66b3bd992088cf60dd5ee2e6f7dde3a8"
       url: "https://pub.dev"
     source: hosted
-    version: "12.0.0"
+    version: "9.0.2"
   geolocator_android:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: geolocator_android
       sha256: fcb1760a50d7500deca37c9a666785c047139b5f9ee15aa5469fae7dbbe3170d
@@ -145,7 +153,7 @@ packages:
     source: hosted
     version: "2.3.13"
   geolocator_platform_interface:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: geolocator_platform_interface
       sha256: "30cb64f0b9adcc0fb36f628b4ebf4f731a2961a0ebd849f4b56200205056fe67"
@@ -156,18 +164,18 @@ packages:
     dependency: transitive
     description:
       name: geolocator_web
-      sha256: b1ae9bdfd90f861fde8fd4f209c37b953d65e92823cb73c7dee1fa021b06f172
+      sha256: "102e7da05b48ca6bf0a5bda0010f886b171d1a08059f01bfe02addd0175ebece"
       url: "https://pub.dev"
     source: hosted
-    version: "4.1.3"
+    version: "2.2.1"
   geolocator_windows:
     dependency: transitive
     description:
       name: geolocator_windows
-      sha256: "175435404d20278ffd220de83c2ca293b73db95eafbdc8131fe8609be1421eb6"
+      sha256: "4f4218f122a6978d0ad655fa3541eea74c67417440b09f0657238810d5af6bdc"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.5"
+    version: "0.1.3"
   google_fonts:
     dependency: "direct main"
     description:
@@ -177,7 +185,7 @@ packages:
     source: hosted
     version: "6.3.1"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: bb2ce4590bc2667c96f318d68cac1b5a7987ec819351d32b1c987239a815e007
@@ -252,7 +260,7 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: master
+      ref: "4a09cc"
       resolved-ref: "4a09cc4401bb77e900f005cc1e2f712193b997af"
       url: "https://github.com/tobrun/flutter-mapbox-gl.git"
     source: git
@@ -451,6 +459,62 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.5+1"
+  shared_preferences:
+    dependency: "direct main"
+    description:
+      name: shared_preferences
+      sha256: "6e8bf70b7fef813df4e9a36f658ac46d107db4b4cfe1048b477d4e453a8159f5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.3"
+  shared_preferences_android:
+    dependency: transitive
+    description:
+      name: shared_preferences_android
+      sha256: a2608114b1ffdcbc9c120eb71a0e207c71da56202852d4aab8a5e30a82269e74
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.12"
+  shared_preferences_foundation:
+    dependency: transitive
+    description:
+      name: shared_preferences_foundation
+      sha256: "6a52cfcdaeac77cad8c97b539ff688ccfc458c007b4db12be584fbe5c0e49e03"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.4"
+  shared_preferences_linux:
+    dependency: transitive
+    description:
+      name: shared_preferences_linux
+      sha256: "580abfd40f415611503cae30adf626e6656dfb2f0cee8f465ece7b6defb40f2f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.1"
+  shared_preferences_platform_interface:
+    dependency: transitive
+    description:
+      name: shared_preferences_platform_interface
+      sha256: "57cbf196c486bc2cf1f02b85784932c6094376284b3ad5779d1b1c6c6a816b80"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.1"
+  shared_preferences_web:
+    dependency: transitive
+    description:
+      name: shared_preferences_web
+      sha256: c49bd060261c9a3f0ff445892695d6212ff603ef3115edbb448509d407600019
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.3"
+  shared_preferences_windows:
+    dependency: transitive
+    description:
+      name: shared_preferences_windows
+      sha256: "94ef0f72b2d71bc3e700e025db3710911bd51a71cefb65cc609dd0d9a982e3c1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.1"
   sky_engine:
     dependency: transitive
     description: flutter

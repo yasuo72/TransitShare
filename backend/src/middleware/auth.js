@@ -1,7 +1,7 @@
 // Simple stub auth middleware.
 // In production replace with Google Sign-In verification or OTP.
 import jwt from 'jsonwebtoken';
-import User from '../models/userModel.js';
+import User from '../models/User.js';
 
 const protect = async (req, res, next) => {
   let token;

@@ -3,29 +3,50 @@ import '../widgets/social_button.dart';
 import '../widgets/gradient_button.dart';
 import '../services/auth_service.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignupScreenState extends State<SignupScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+  Future<void> _handleSignup() async {
+    if (_nameController.text.isEmpty || 
+        _emailController.text.isEmpty || 
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields')),
+      );
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters')),
       );
       return;
     }
@@ -35,7 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final user = await AuthService.login(
+      final user = await AuthService.register(
+        _nameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text,
       );
@@ -44,12 +66,12 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid email or password')),
+          const SnackBar(content: Text('Registration failed')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: $e')),
+        SnackBar(content: Text('Registration failed: $e')),
       );
     } finally {
       setState(() {
@@ -83,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Welcome back',
+                'Create Account',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -91,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Sign in to start sharing and tracking',
+                'Join the community and start sharing',
                 style: Theme.of(context)
                     .textTheme
                     .bodyMedium
@@ -121,26 +143,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+              _buildInputField(_nameController, 'Full Name'),
+              const SizedBox(height: 16),
               _buildInputField(_emailController, 'Email address'),
               const SizedBox(height: 16),
               _buildInputField(_passwordController, 'Password', obscure: true),
+              const SizedBox(height: 16),
+              _buildInputField(_confirmPasswordController, 'Confirm Password', obscure: true),
               const SizedBox(height: 24),
               GradientButton(
-                text: _isLoading ? 'Signing In...' : 'Sign In',
-                onPressed: _isLoading ? () {} : () => _handleLogin(),
+                text: _isLoading ? 'Creating Account...' : 'Sign Up',
+                onPressed: _isLoading ? () {} : () => _handleSignup(),
               ),
               const SizedBox(height: 24),
               Center(
                 child: RichText(
                   text: TextSpan(
-                    text: "Don't have an account? ",
+                    text: "Already have an account? ",
                     style: const TextStyle(color: Colors.white70),
                     children: [
                       WidgetSpan(
                         child: GestureDetector(
-                          onTap: () => Navigator.pushNamed(context, '/signup'),
+                          onTap: () => Navigator.pop(context),
                           child: const Text(
-                            'Sign up',
+                            'Sign in',
                             style: TextStyle(color: Color(0xFF19C6FF), fontWeight: FontWeight.w600),
                           ),
                         ),
