@@ -78,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _connectToSocket() {
     // TODO: Replace YOUR_COMPUTER_IP with your actual local IP address
-    socket = io.io('http://192.168.28.224:5000', <String, dynamic>{
+    socket = io.io('https://transitshare-production.up.railway.app', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });

@@ -23,7 +23,7 @@ class LocationService {
       // Clean up existing socket if any
       await cleanup();
 
-      _socket = IO.io('http://10.0.2.2:5000', <String, dynamic>{
+      _socket = IO.io('https://transitshare-production.up.railway.app', <String, dynamic>{
         'transports': ['websocket', 'polling'],
         'autoConnect': true,
         'forceNew': true,

@@ -5,7 +5,7 @@ import '../models/user_model.dart';
 import 'navigation_state_service.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://192.168.1.9:5000/api/auth';
+  static const String baseUrl = 'https://transitshare-production.up.railway.app/api/auth';
 
   // Login user
   static Future<User?> login(String email, String password) async {
