@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../models/user_model.dart';
 import 'auth_service.dart';
@@ -15,35 +14,64 @@ class LocationService {
   
   // Initialize socket connection
   static Future<void> initSocket() async {
-    _socket = IO.io('http://localhost:5000', <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-    });
-    
-    _socket!.connect();
-    
-    _socket!.onConnect((_) {
-      print('Connected to server');
-      _joinUser();
-    });
-    
-    _socket!.onDisconnect((_) {
-      print('Disconnected from server');
-    });
+    try {
+      // Only initialize if not already connected
+      if (_socket != null && _socket!.connected) {
+        return;
+      }
 
-    // Listen for user online/offline events
-    _socket!.on('userOnline', (data) {
-      print('User ${data['userName']} came online');
-    });
+      // Clean up existing socket if any
+      await cleanup();
 
-    _socket!.on('userOffline', (data) {
-      print('User ${data['userName']} went offline');
-    });
+      _socket = IO.io('http://10.0.2.2:5000', <String, dynamic>{
+        'transports': ['websocket', 'polling'],
+        'autoConnect': true,
+        'forceNew': true,
+        'reconnection': true,
+        'reconnectionAttempts': 5,
+        'reconnectionDelay': 1000,
+        'reconnectionDelayMax': 5000,
+        'timeout': 20000,
+      });
+      
+      _socket!.onConnect((_) {
+        print('✅ Connected to server');
+        _joinUser();
+      });
+      
+      _socket!.onDisconnect((_) {
+        print('⚠️ Disconnected from server');
+      });
 
-    // Listen for bus approaching notifications
-    _socket!.on('busApproaching', (data) {
-      _onBusApproaching?.call(data);
-    });
+      _socket!.onConnectError((err) {
+        print('❌ Connection error: $err');
+      });
+
+      _socket!.onError((err) {
+        print('❌ Socket error: $err');
+      });
+
+      // Listen for user online/offline events
+      _socket!.on('userOnline', (data) {
+        print('👤 User ${data['userName']} came online');
+      });
+
+      _socket!.on('userOffline', (data) {
+        print('👋 User ${data['userName']} went offline');
+      });
+
+      // Listen for bus approaching notifications
+      _socket!.on('busApproaching', (data) {
+        _onBusApproaching?.call(data);
+      });
+
+      // Connect to the server
+      _socket!.connect();
+      
+    } catch (e) {
+      print('❌ Error initializing socket: $e');
+      rethrow;
+    }
   }
 
   static Function(Map<String, dynamic>)? _onBusApproaching;
@@ -63,43 +91,108 @@ class LocationService {
 
   // Start sharing location
   static Future<bool> startLocationSharing(String busName) async {
-    _currentBusName = busName;
-    
-    // Get current user
-    _currentUser = await AuthService.getStoredUser();
-    if (_currentUser == null) {
-      return false;
-    }
-    _currentUserId = _currentUser!.id;
+    try {
+      if (busName.trim().isEmpty) {
+        throw Exception('Bus name cannot be empty');
+      }
+      
+      _currentBusName = busName;
+      
+      // Get current user
+      _currentUser = await AuthService.getStoredUser();
+      if (_currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+      _currentUserId = _currentUser!.id;
 
-    _currentBusName = busName;
-
-    // Initialize socket if not connected
-    if (_socket == null) {
+      // Initialize socket if not connected
       await initSocket();
+      
+      // Wait for connection with timeout
+      final completer = Completer<bool>();
+      final timer = Timer(const Duration(seconds: 10), () {
+        if (!completer.isCompleted) {
+          completer.completeError(TimeoutException('Connection timeout'));
+        }
+      });
+
+      // Listen for successful connection
+      void onConnect(_) {
+        if (!completer.isCompleted) {
+          timer.cancel();
+          completer.complete(true);
+        }
+      }
+
+      _socket!.once('connect', onConnect);
+      
+      // If already connected, complete immediately
+      if (_socket!.connected) {
+        timer.cancel();
+        completer.complete(true);
+      }
+
+      // Wait for connection or timeout
+      await completer.future.whenComplete(() {
+        _socket!.off('connect', onConnect);
+      });
+
+      // Start location stream
+      const LocationSettings locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10, // Update every 10 meters
+      );
+
+      _positionStream?.cancel(); // Cancel any existing stream
+      _positionStream = Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen(
+        (Position position) {
+          _currentSpeed = position.speed;
+          shareLocation(position.latitude, position.longitude, busName);
+        },
+        onError: (e) => print('❌ Location stream error: $e'),
+        cancelOnError: false,
+      );
+
+      return true;
+    } catch (e) {
+      print('❌ Error starting location sharing: $e');
+      await stopLocationSharing();
+      rethrow;
     }
-
-    // Start location stream
-    const LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Update every 10 meters
-    );
-
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((Position position) {
-      _currentSpeed = position.speed;
-      shareLocation(position.latitude, position.longitude, busName);
-    });
-
-    return true;
   }
 
   // Stop sharing location
   static Future<void> stopLocationSharing() async {
-    await _positionStream?.cancel();
-    _positionStream = null;
-    _currentBusName = null;
+    try {
+      await _positionStream?.cancel();
+      _positionStream = null;
+      _currentBusName = null;
+      
+      // Notify server that sharing has stopped
+      if (_socket != null && _socket!.connected) {
+        _socket!.emit('stopSharing', {'userId': _currentUserId});
+      }
+    } catch (e) {
+      print('❌ Error stopping location sharing: $e');
+      rethrow;
+    }
+  }
+  
+  // Clean up resources
+  static Future<void> cleanup() async {
+    try {
+      await stopLocationSharing();
+      
+      if (_socket != null) {
+        _socket!.disconnect();
+        _socket!.dispose();
+        _socket = null;
+      }
+    } catch (e) {
+      print('❌ Error disposing LocationService: $e');
+    }
   }
 
   // Share location via socket
@@ -202,16 +295,34 @@ class LocationService {
   // Get current location once
   static Future<Position?> getCurrentLocation() async {
     try {
-      final permission = await Permission.location.request();
-      if (!permission.isGranted) {
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('Location services are disabled.');
+        return null;
+      }
+
+      // Check and request location permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          print('Location permissions are denied');
+          return null;
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        print('Location permissions are permanently denied');
         return null;
       }
 
       return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
       );
     } catch (e) {
-      print('Error getting current location: $e');
+      print('Error getting location: $e');
       return null;
     }
   }

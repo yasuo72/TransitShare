@@ -13,6 +13,24 @@ import UserStateManager from './services/UserStateManager.js';
 
 dotenv.config();
 
+// Helper function for distance calculation
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const d = R * c; // Distance in kilometers
+  return d;
+}
+
+// In-memory storage for active location sharing
+const activeUsers = new Map();
+const locationHistory = new Map();
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -159,7 +177,7 @@ io.on('connection', (socket) => {
           userId,
           busName,
           busType: busType || 'regular',
-          userName: user.name,
+          userName: session.userName,
           route: [],
           startTime: dbHistory.startTime,
           totalDistance: 0,
@@ -184,7 +202,7 @@ io.on('connection', (socket) => {
         timestamp,
         busType: busType || 'regular',
         speed: speed || 0,
-        userName: user.name,
+        userName: session.userName,
         isOnline: true,
       };
 
@@ -372,5 +390,27 @@ io.on('connection', (socket) => {
   });
 });
 
+// Add health check endpoint for Railway
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'TransitShare Backend API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 TransitShare Backend running on port ${PORT}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+});

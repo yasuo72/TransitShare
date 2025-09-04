@@ -334,8 +334,12 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
         ),
         title: Row(
           children: [
-            const Text('Live Location Sharing', style: TextStyle(color: Colors.white)),
-            const Spacer(),
+            const Expanded(
+              child: Text('Live Location Sharing', 
+                style: TextStyle(color: Colors.white),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             _buildConnectionStatus(),
           ],
         ),
@@ -492,7 +496,7 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: MapboxMap(
                   styleString: MapboxStyles.DARK,
-                  myLocationEnabled: true,
+                  myLocationEnabled: false,
                   onMapCreated: (controller) {
                     _mapController = controller;
                     _centerOnCurrentLocation();
