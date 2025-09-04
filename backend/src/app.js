@@ -35,8 +35,11 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*"
-  }
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
 
 // DB connection with error handling
@@ -45,8 +48,13 @@ connectDB().catch(err => {
   process.exit(1);
 });
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
@@ -412,16 +420,17 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
 
 // Add error handling for server startup
-server.listen(PORT, '0.0.0.0', (err) => {
+server.listen(PORT, HOST, (err) => {
   if (err) {
     console.error('Failed to start server:', err);
     process.exit(1);
   }
-  console.log(`🚀 TransitShare Backend running on port ${PORT}`);
+  console.log(`🚀 TransitShare Backend running on ${HOST}:${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌐 Health check available at /health`);
 });
 
 // Handle uncaught exceptions
