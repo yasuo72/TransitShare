@@ -67,7 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         } else {
-          await _mapController!.updateSymbol(_userSymbol!, SymbolOptions(geometry: userLatLng));
+          await _mapController!
+              .updateSymbol(_userSymbol!, SymbolOptions(geometry: userLatLng));
         }
       }
     } catch (e) {
@@ -78,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _connectToSocket() {
     // TODO: Replace YOUR_COMPUTER_IP with your actual local IP address
-    socket = io.io('https://transitshare-production.up.railway.app', <String, dynamic>{
+    socket = io.io('http://192.168.28.224:5000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -147,17 +148,22 @@ class _HomeScreenState extends State<HomeScreen> {
         behavior: HitTestBehavior.opaque,
         onTap: AutoHideBottomNav.show,
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: 12),
-              _buildSearchBar(),
-              const SizedBox(height: 12),
-              _buildMap(context),
-              const SizedBox(height: 12),
-              _buildNearbyListTitle(),
-              Expanded(child: _buildNearbyList()),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeader(context),
+                const SizedBox(height: 12),
+                _buildSearchBar(),
+                const SizedBox(height: 12),
+                _buildMap(context),
+                const SizedBox(height: 12),
+                _buildNearbyListTitle(),
+                SizedBox(
+                  height: 200, // Fixed height for nearby list
+                  child: _buildNearbyList(),
+                ),
+              ],
+            ),
           ),
         ),
       ),

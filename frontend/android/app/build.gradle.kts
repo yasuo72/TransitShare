@@ -50,16 +50,14 @@ android {
 configurations.all {
     resolutionStrategy {
         force("com.google.android.gms:play-services-location:21.0.1")
-        force("com.google.android.gms:play-services-base:18.3.0")
-        force("com.google.android.gms:play-services-maps:18.2.0")
+        force("com.google.android.gms:play-services-base:18.2.0")
     }
 }
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.22")
     implementation("com.google.android.gms:play-services-location:21.0.1")
-    implementation("com.google.android.gms:play-services-base:18.3.0")
-    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-base:18.2.0")
 }
 
 flutter {

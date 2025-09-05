@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../models/user_model.dart';
 import 'auth_service.dart';
@@ -11,7 +12,7 @@ class LocationService {
   static User? _currentUser;
   static String? _currentUserId;
   static double? _currentSpeed;
-  
+
   // Initialize socket connection
   static Future<void> initSocket() async {
     try {
@@ -23,7 +24,8 @@ class LocationService {
       // Clean up existing socket if any
       await cleanup();
 
-      _socket = IO.io('https://transitshare-production.up.railway.app', <String, dynamic>{
+      // Replace 'YOUR_PC_IP' with your actual PC IP address (e.g., 192.168.1.100)
+      _socket = IO.io('http://YOUR_PC_IP:5000', <String, dynamic>{
         'transports': ['websocket', 'polling'],
         'autoConnect': true,
         'forceNew': true,
@@ -33,12 +35,12 @@ class LocationService {
         'reconnectionDelayMax': 5000,
         'timeout': 20000,
       });
-      
+
       _socket!.onConnect((_) {
         print('✅ Connected to server');
         _joinUser();
       });
-      
+
       _socket!.onDisconnect((_) {
         print('⚠️ Disconnected from server');
       });
@@ -67,7 +69,6 @@ class LocationService {
 
       // Connect to the server
       _socket!.connect();
-      
     } catch (e) {
       print('❌ Error initializing socket: $e');
       rethrow;
@@ -76,7 +77,8 @@ class LocationService {
 
   static Function(Map<String, dynamic>)? _onBusApproaching;
 
-  static void setOnBusApproachingCallback(Function(Map<String, dynamic>) callback) {
+  static void setOnBusApproachingCallback(
+      Function(Map<String, dynamic>) callback) {
     _onBusApproaching = callback;
   }
 
@@ -95,9 +97,9 @@ class LocationService {
       if (busName.trim().isEmpty) {
         throw Exception('Bus name cannot be empty');
       }
-      
+
       _currentBusName = busName;
-      
+
       // Get current user
       _currentUser = await AuthService.getStoredUser();
       if (_currentUser == null) {
@@ -107,7 +109,7 @@ class LocationService {
 
       // Initialize socket if not connected
       await initSocket();
-      
+
       // Wait for connection with timeout
       final completer = Completer<bool>();
       final timer = Timer(const Duration(seconds: 10), () {
@@ -125,7 +127,7 @@ class LocationService {
       }
 
       _socket!.once('connect', onConnect);
-      
+
       // If already connected, complete immediately
       if (_socket!.connected) {
         timer.cancel();
@@ -169,7 +171,7 @@ class LocationService {
       await _positionStream?.cancel();
       _positionStream = null;
       _currentBusName = null;
-      
+
       // Notify server that sharing has stopped
       if (_socket != null && _socket!.connected) {
         _socket!.emit('stopSharing', {'userId': _currentUserId});
@@ -179,12 +181,12 @@ class LocationService {
       rethrow;
     }
   }
-  
+
   // Clean up resources
   static Future<void> cleanup() async {
     try {
       await stopLocationSharing();
-      
+
       if (_socket != null) {
         _socket!.disconnect();
         _socket!.dispose();
@@ -223,7 +225,8 @@ class LocationService {
   }
 
   // Listen for location updates from other users
-  static void listenForLocationUpdates(Function(LocationShare) onLocationUpdate) {
+  static void listenForLocationUpdates(
+      Function(LocationShare) onLocationUpdate) {
     _socket?.on('locationUpdate', (data) {
       try {
         final locationShare = LocationShare.fromJson(data);
@@ -245,10 +248,12 @@ class LocationService {
   }
 
   // Listen for nearby buses updates
-  static void listenForNearbyBuses(Function(List<Map<String, dynamic>>) onNearbyBuses) {
+  static void listenForNearbyBuses(
+      Function(List<Map<String, dynamic>>) onNearbyBuses) {
     _socket?.on('nearbyBusesUpdate', (data) {
       try {
-        final List<Map<String, dynamic>> buses = List<Map<String, dynamic>>.from(data);
+        final List<Map<String, dynamic>> buses =
+            List<Map<String, dynamic>>.from(data);
         onNearbyBuses(buses);
       } catch (e) {
         print('Error parsing nearby buses: $e');
@@ -264,7 +269,8 @@ class LocationService {
   }
 
   // Listen for location history updates
-  static void listenForLocationHistory(Function(Map<String, dynamic>) onLocationHistory) {
+  static void listenForLocationHistory(
+      Function(Map<String, dynamic>) onLocationHistory) {
     _socket?.on('locationHistoryUpdate', (data) {
       try {
         onLocationHistory(Map<String, dynamic>.from(data));
@@ -282,7 +288,8 @@ class LocationService {
   }
 
   // Listen for route visualization updates
-  static void listenForRouteVisualization(Function(Map<String, dynamic>) onRouteVisualization) {
+  static void listenForRouteVisualization(
+      Function(Map<String, dynamic>) onRouteVisualization) {
     _socket?.on('routeVisualizationUpdate', (data) {
       try {
         onRouteVisualization(Map<String, dynamic>.from(data));
@@ -295,41 +302,23 @@ class LocationService {
   // Get current location once
   static Future<Position?> getCurrentLocation() async {
     try {
-      // Check if location services are enabled
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        print('Location services are disabled.');
-        return null;
-      }
-
-      // Check and request location permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          print('Location permissions are denied');
-          return null;
-        }
-      }
-      
-      if (permission == LocationPermission.deniedForever) {
-        print('Location permissions are permanently denied');
+      final permission = await Permission.location.request();
+      if (!permission.isGranted) {
         return null;
       }
 
       return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
       );
     } catch (e) {
-      print('Error getting location: $e');
+      print('Error getting current location: $e');
       return null;
     }
   }
 
   // Check if location sharing is active
   static bool get isSharing => _positionStream != null;
-  
+
   // Get current bus name
   static String? get currentBusName => _currentBusName;
 

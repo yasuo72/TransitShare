@@ -137,7 +137,7 @@ packages:
     source: hosted
     version: "9.0.2"
   geolocator_android:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: geolocator_android
       sha256: fcb1760a50d7500deca37c9a666785c047139b5f9ee15aa5469fae7dbbe3170d
@@ -153,7 +153,7 @@ packages:
     source: hosted
     version: "2.3.13"
   geolocator_platform_interface:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: geolocator_platform_interface
       sha256: "30cb64f0b9adcc0fb36f628b4ebf4f731a2961a0ebd849f4b56200205056fe67"

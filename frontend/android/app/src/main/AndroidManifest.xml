@@ -4,18 +4,15 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:label="transit_share"
         android:name="${applicationName}"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher">
-        <receiver android:name="com.mapbox.android.telemetry.AlarmReceiver" 
-                  android:exported="false"
-                  android:enabled="true">
+        <receiver android:name="com.mapbox.mapboxsdk.module.telemetry.TelemetryReceiver"
+            android:exported="false">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.mapbox.mapboxsdk.action.TELEMETRY_SYNC" />
             </intent-filter>
         </receiver>
 

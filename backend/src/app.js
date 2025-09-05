@@ -13,48 +13,19 @@ import UserStateManager from './services/UserStateManager.js';
 
 dotenv.config();
 
-// Helper function for distance calculation
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of the Earth in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  const d = R * c; // Distance in kilometers
-  return d;
-}
-
-// In-memory storage for active location sharing
-const activeUsers = new Map();
-const locationHistory = new Map();
-
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  transports: ['websocket', 'polling']
+    origin: "*"
+  }
 });
 
-// DB connection with error handling
-connectDB().catch(err => {
-  console.error('Failed to connect to MongoDB:', err);
-  process.exit(1);
-});
+// DB connection
+connectDB();
 
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-}));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
@@ -188,7 +159,7 @@ io.on('connection', (socket) => {
           userId,
           busName,
           busType: busType || 'regular',
-          userName: session.userName,
+          userName: user.name,
           route: [],
           startTime: dbHistory.startTime,
           totalDistance: 0,
@@ -213,7 +184,7 @@ io.on('connection', (socket) => {
         timestamp,
         busType: busType || 'regular',
         speed: speed || 0,
-        userName: session.userName,
+        userName: user.name,
         isOnline: true,
       };
 
@@ -401,45 +372,5 @@ io.on('connection', (socket) => {
   });
 });
 
-// Add health check endpoint for Railway
-app.get('/', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'TransitShare Backend API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
-});
-
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
-
-// Add error handling for server startup
-server.listen(PORT, HOST, (err) => {
-  if (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
-  }
-  console.log(`🚀 TransitShare Backend running on ${HOST}:${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Health check available at /health`);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

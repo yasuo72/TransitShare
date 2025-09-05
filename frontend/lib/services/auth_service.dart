@@ -5,7 +5,8 @@ import '../models/user_model.dart';
 import 'navigation_state_service.dart';
 
 class AuthService {
-  static const String baseUrl = 'https://transitshare-production.up.railway.app/api/auth';
+  // Replace 'YOUR_PC_IP' with your actual PC IP address (e.g., 192.168.1.100)
+  static const String baseUrl = 'http://192.168.1.9:5000/api/auth';
 
   // Login user
   static Future<User?> login(String email, String password) async {
@@ -19,7 +20,7 @@ class AuthService {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         final user = User.fromJson(data);
 
@@ -38,9 +39,11 @@ class AuthService {
         // Update last active time
         await NavigationStateService.updateLastActiveTime();
 
+        print('Login successful for user: ${user.name}');
         return user;
       } else {
-        print('Login failed: ${response.body}');
+        print(
+            'Login failed with status ${response.statusCode}: ${response.body}');
         return null;
       }
     } catch (e) {
