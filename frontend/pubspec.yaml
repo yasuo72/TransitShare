@@ -18,12 +18,16 @@ dependencies:
   geolocator: ^9.0.2
   http: ^1.1.0
   shared_preferences: ^2.2.2
+  image_picker: ^1.0.4
+  path_provider: ^2.1.1
+  path: ^1.8.3
   # TODO: add firebase_auth or other auth packages later
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.13.1
 
 dependency_overrides:
   mapbox_gl:
@@ -33,3 +37,20 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/location.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/icons/location.png"
+    background_color: "#hexcode"
+    theme_color: "#hexcode"
+  windows:
+    generate: true
+    image_path: "assets/icons/location.png"
+    icon_size: 48 # min:48, max:256, default: 48

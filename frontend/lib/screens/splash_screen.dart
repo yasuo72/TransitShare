@@ -32,7 +32,7 @@ class SplashScreen extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF19C6FF).withOpacity(0.7),
+                    color: const Color(0xFF19C6FF).withValues(alpha: 0.7),
                     blurRadius: 30,
                     spreadRadius: 4,
                   )

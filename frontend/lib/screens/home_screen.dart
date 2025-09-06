@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mapbox_gl/mapbox_gl.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:permission_handler/permission_handler.dart';
@@ -53,22 +55,27 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-      if (_mapController != null) {
+      if (_mapController != null && mounted) {
         final userLatLng = LatLng(position.latitude, position.longitude);
-        _mapController!.animateCamera(
-          CameraUpdate.newLatLngZoom(userLatLng, 14.0),
-        );
-        if (_userSymbol == null) {
-          _userSymbol = await _mapController!.addSymbol(
-            SymbolOptions(
-              geometry: userLatLng,
-              iconImage: 'marker-15',
-              iconSize: 1.5,
-            ),
+        try {
+          await _mapController!.animateCamera(
+            CameraUpdate.newLatLngZoom(userLatLng, 14.0),
           );
-        } else {
-          await _mapController!
-              .updateSymbol(_userSymbol!, SymbolOptions(geometry: userLatLng));
+          if (_userSymbol == null) {
+            _userSymbol = await _mapController!.addSymbol(
+              SymbolOptions(
+                geometry: userLatLng,
+                iconImage: 'marker-15',
+                iconSize: 1.5,
+              ),
+            );
+          } else {
+            await _mapController!
+                .updateSymbol(_userSymbol!, SymbolOptions(geometry: userLatLng));
+          }
+        } catch (mapError) {
+          debugPrint('Map controller error: $mapError');
+          // Map controller has been disposed, ignore the error
         }
       }
     } catch (e) {
@@ -101,38 +108,44 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _lastUpdateTime = now;
 
-    // Handle new location sharing format
-    final userId = data['userId'];
-    final busName = data['busName'] ?? data['busId'];
-    final lat = data['latitude'] ?? data['lat'];
-    final lng = data['longitude'] ?? data['lng'];
-    final newPosition = LatLng(lat, lng);
+    try {
+      // Handle new location sharing format
+      final userId = data['userId'];
+      final busName = data['busName'] ?? data['busId'];
+      final lat = data['latitude'] ?? data['lat'];
+      final lng = data['longitude'] ?? data['lng'];
+      final newPosition = LatLng(lat, lng);
 
-    if (_symbols.containsKey(userId)) {
-      final symbol = _symbols[userId]!;
-      await _mapController!.updateSymbol(
-        symbol,
-        SymbolOptions(geometry: newPosition),
-      );
-    } else {
-      final newSymbol = await _mapController!.addSymbol(
-        SymbolOptions(
-          geometry: newPosition,
-          iconImage: 'bus-15',
-          iconSize: 2.0,
-          textField: busName,
-          textOffset: const Offset(0, 2.5),
-          textColor: '#FFFFFF',
-          textHaloColor: '#000000',
-          textHaloWidth: 2.0,
-          textSize: 12,
-        ),
-      );
-      if (mounted) {
-        setState(() {
-          _symbols[userId] = newSymbol;
-        });
+      if (_symbols.containsKey(userId)) {
+        final symbol = _symbols[userId]!;
+        await _mapController!.updateSymbol(
+          symbol,
+          SymbolOptions(geometry: newPosition),
+        );
+      } else {
+        final newSymbol = await _mapController!.addSymbol(
+          SymbolOptions(
+            geometry: newPosition,
+            iconImage: 'custom-bus-icon',
+            iconSize: 0.05,
+            textField: busName,
+            textSize: 12,
+            textColor: '#2ECC71', // Green for bus markers
+            textHaloColor: '#FFFFFF',
+            textHaloWidth: 2.0,
+            textOffset: const Offset(0, 2.0),
+            textAnchor: 'top',
+          ),
+        );
+        if (mounted) {
+          setState(() {
+            _symbols[userId] = newSymbol;
+          });
+        }
       }
+    } catch (e) {
+      debugPrint('Error updating marker: $e');
+      // Map controller may have been disposed, ignore the error
     }
   }
 
@@ -268,8 +281,21 @@ class _HomeScreenState extends State<HomeScreen> {
               MapboxMap(
                 styleString: MapboxStyles.DARK,
                 myLocationEnabled: false,
-                onMapCreated: (MapboxMapController controller) {
+                onMapCreated: (MapboxMapController controller) async {
                   _mapController = controller;
+
+                  // Load custom bus icon
+                  try {
+                    final ByteData bytes =
+                        await rootBundle.load('assets/icons/cute-bus.png');
+                    final Uint8List list = bytes.buffer.asUint8List();
+                    await controller.addImage('custom-bus-icon', list);
+                    print('✅ Custom bus icon loaded in home screen');
+                  } catch (e) {
+                    print(
+                        '⚠️ Failed to load custom bus icon in home screen: $e');
+                  }
+
                   _goToCurrentUserLocation();
                 },
                 initialCameraPosition: CameraPosition(

@@ -45,7 +45,7 @@ class _ShareRideScreenState extends State<ShareRideScreen> {
                 borderRadius: BorderRadius.circular(24),
                 gradient: const LinearGradient(colors: [Color(0xFF7A2CF0), Color(0xFF19C6FF)]),
                 boxShadow: [
-                  BoxShadow(color: const Color(0xFF19C6FF).withOpacity(0.7), blurRadius: 30, spreadRadius: 4),
+                  BoxShadow(color: const Color(0xFF19C6FF).withValues(alpha: 0.7), blurRadius: 30, spreadRadius: 4),
                 ],
               ),
               child: const Icon(Icons.directions_bus, color: Colors.white, size: 48),
@@ -90,7 +90,7 @@ class _ShareRideScreenState extends State<ShareRideScreen> {
         borderRadius: BorderRadius.circular(14),
         color: const Color(0xFF101426),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF19C6FF).withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: const Color(0xFF19C6FF).withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: TextField(
@@ -115,7 +115,7 @@ class _ShareRideScreenState extends State<ShareRideScreen> {
         borderRadius: BorderRadius.circular(14),
         color: const Color(0xFF101426),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF19C6FF).withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: const Color(0xFF19C6FF).withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: DropdownButtonHideUnderline(

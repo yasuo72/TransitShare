@@ -114,7 +114,6 @@ class AuthService {
           name: sessionData['userName'],
           email: sessionData['email'],
           points: sessionData['points'] ?? 0,
-          walletBalance: 0.0,
         );
       }
 

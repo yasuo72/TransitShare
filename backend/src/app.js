@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import User from './models/User.js';
 import LocationHistory from './models/LocationHistory.js';
 import UserSession from './models/UserSession.js';
@@ -21,13 +23,49 @@ const io = new Server(server, {
   }
 });
 
-// DB connection
-connectDB();
+// DB connection with error handling
+connectDB().catch(err => {
+  console.error('Database connection failed:', err);
+  process.exit(1);
+});
 
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/profile', profileRoutes);
+
+// Middleware to attach io to requests for notifications
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+app.use('/api/notifications', notificationRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ 
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
 
 // In-memory storage for quick access
 const locationHistory = new Map();
@@ -97,7 +135,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('shareLocation', async (data) => {
-    const { userId, latitude, longitude, busName, timestamp, busType, speed } = data;
+    const { userId, latitude, longitude, busName, timestamp, busType, speed, isFirstShare } = data;
 
     try {
       // Get user session
@@ -105,6 +143,69 @@ io.on('connection', (socket) => {
       if (!session || session.userId !== userId) {
         socket.emit('error', { message: 'Invalid session' });
         return;
+      }
+
+      // If this is the first location share, send notifications to nearby users
+      if (isFirstShare) {
+        const { default: Notification } = await import('./models/Notification.js');
+        const user = await User.findById(userId);
+        
+        if (user) {
+          // Find nearby users (within 5km radius)
+          const nearbyUsers = await User.find({
+            _id: { $ne: userId },
+            isActive: true,
+            'preferences.notifications': true,
+            location: {
+              $near: {
+                $geometry: {
+                  type: 'Point',
+                  coordinates: [longitude, latitude]
+                },
+                $maxDistance: 5000 // 5km in meters
+              }
+            }
+          });
+
+          // Create notifications for nearby users
+          if (nearbyUsers.length > 0) {
+            const notifications = nearbyUsers.map(nearbyUser => ({
+              userId: nearbyUser._id,
+              type: 'location_sharing',
+              title: `${busName} is now sharing location`,
+              message: `${user.name} started sharing location of ${busName}. Track it now!`,
+              data: {
+                senderId: userId,
+                senderName: user.name,
+                busName,
+                busType: busType || 'regular',
+                latitude,
+                longitude
+              }
+            }));
+
+            await Notification.insertMany(notifications);
+            
+            // Emit socket event for real-time notifications
+            nearbyUsers.forEach(nearbyUser => {
+              io.to(nearbyUser._id.toString()).emit('new_notification', {
+                type: 'location_sharing',
+                title: `${busName} is now sharing location`,
+                message: `${user.name} started sharing location of ${busName}`,
+                data: {
+                  senderId: userId,
+                  senderName: user.name,
+                  busName,
+                  busType: busType || 'regular',
+                  latitude,
+                  longitude
+                }
+              });
+            });
+
+            console.log(`📢 Sent location sharing notifications to ${notifications.length} nearby users`);
+          }
+        }
       }
 
       // Update user location in state manager
@@ -405,4 +506,34 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Health check available at http://localhost:${PORT}/health`);
+});

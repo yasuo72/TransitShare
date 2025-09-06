@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../widgets/gradient_button.dart';
+import 'package:flutter/services.dart';
 import 'package:mapbox_gl/mapbox_gl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +8,7 @@ import '../models/bus_route.dart';
 import '../models/user_model.dart';
 import '../services/bus_route_service.dart';
 import '../services/directions_service.dart';
+import '../widgets/gradient_button.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class TrackVehicleScreen extends StatefulWidget {
@@ -18,21 +19,21 @@ class TrackVehicleScreen extends StatefulWidget {
 }
 
 class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
-  final _searchController = TextEditingController();
+  final Map<String, Symbol> _stopSymbols = {};
+  List<BusRoute> _searchResults = [];
+  final BusRouteService _routeService = BusRouteService();
+  final TextEditingController _searchController = TextEditingController();
   MapboxMapController? _mapController;
   Symbol? _userSymbol;
   final LatLng _center = const LatLng(22.3072, 73.1812); // Vadodara center
-  final BusRouteService _routeService = BusRouteService();
   BusRoute? _selectedRoute;
-  List<Symbol> _stopSymbols = [];
+  List<LocationShare> _nearbyBuses = [];
+  final Map<String, Symbol> _busMarkers = {};
   Line? _routeLine;
   bool _isSearching = false;
-  List<BusRoute> _searchResults = [];
-  
+
   // Real-time location sharing
   io.Socket? _socket;
-  List<LocationShare> _nearbyBuses = [];
-  Map<String, Symbol> _busMarkers = {};
 
   @override
   void initState() {
@@ -56,20 +57,20 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
       'transports': ['websocket', 'polling'],
       'autoConnect': false,
     });
-    
+
     _socket!.connect();
-    
+
     _socket!.on('connect', (_) {
       print('🔌 Track Vehicle: Connected to socket server');
       // Don't join as user, just request nearby buses directly
       _requestNearbyBuses();
     });
-    
+
     _socket!.on('locationUpdate', (data) {
       print('📍 Track Vehicle: Received location update: $data');
       _handleLocationUpdate(data);
     });
-    
+
     _socket!.on('nearbyBusesUpdate', (data) {
       print('🚌 Track Vehicle: Received nearby buses: $data');
       _handleNearbyBuses(data);
@@ -82,7 +83,7 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
         'latitude': _center.latitude,
         'longitude': _center.longitude,
       });
-      
+
       // Set up periodic requests for live updates
       Timer.periodic(const Duration(seconds: 5), (timer) {
         if (_socket != null && _socket!.connected && mounted) {
@@ -99,21 +100,21 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
 
   void _handleLocationUpdate(dynamic data) async {
     if (_mapController == null || !mounted) return;
-    
+
     final locationShare = LocationShare.fromJson(data);
     await _addBusMarker(locationShare);
   }
 
   void _handleNearbyBuses(dynamic data) {
     if (!mounted) return;
-    
+
     final List<dynamic> busesData = data is List ? data : [];
     final buses = busesData.map((bus) => LocationShare.fromJson(bus)).toList();
-    
+
     setState(() {
       _nearbyBuses = buses;
     });
-    
+
     // Add markers for all nearby buses
     for (final bus in buses) {
       _addBusMarker(bus);
@@ -122,37 +123,36 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
 
   Future<void> _addBusMarker(LocationShare locationShare) async {
     if (_mapController == null) return;
-    
+
     try {
       // Remove existing marker for this user
       if (_busMarkers.containsKey(locationShare.userId)) {
         await _mapController!.removeSymbol(_busMarkers[locationShare.userId]!);
       }
-      
-      // Add new marker
+
+      // Add new marker with custom 3D bus icon
       final symbol = await _mapController!.addSymbol(
         SymbolOptions(
           geometry: LatLng(locationShare.latitude, locationShare.longitude),
-          iconImage: 'bus-15',
-          iconSize: 2.0,
+          iconImage: 'custom-bus-icon',
+          iconSize: 0.05,
           textField: locationShare.busName,
           textSize: 12,
-          textColor: '#FFFFFF',
-          textHaloColor: '#000000',
+          textColor: '#2ECC71', // Green for bus markers
+          textHaloColor: '#FFFFFF',
           textHaloWidth: 2.0,
-          textOffset: const Offset(0, 2.5),
+          textOffset: const Offset(0, 2.0),
           textAnchor: 'top',
         ),
       );
-      
+
       _busMarkers[locationShare.userId] = symbol;
-      
+
       // Update nearby buses list
       setState(() {
         _nearbyBuses.removeWhere((bus) => bus.userId == locationShare.userId);
         _nearbyBuses.add(locationShare);
       });
-      
     } catch (e) {
       print('❌ Error adding bus marker: $e');
     }
@@ -181,7 +181,8 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
             ),
           );
         } else {
-          await _mapController!.updateSymbol(_userSymbol!, SymbolOptions(geometry: userLatLng));
+          await _mapController!
+              .updateSymbol(_userSymbol!, SymbolOptions(geometry: userLatLng));
         }
       }
     } catch (_) {}
@@ -200,15 +201,16 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
     setState(() {
       _isSearching = true;
     });
-    
+
     // Get routes with real path data
     final allRoutes = await _routeService.getAllRoutes();
     final filteredRoutes = allRoutes.where((route) {
       return route.routeId.toLowerCase().contains(query.toLowerCase()) ||
           route.routeName.toLowerCase().contains(query.toLowerCase()) ||
-          route.stops.any((stop) => stop.name.toLowerCase().contains(query.toLowerCase()));
+          route.stops.any(
+              (stop) => stop.name.toLowerCase().contains(query.toLowerCase()));
     }).toList();
-    
+
     setState(() {
       _searchResults = filteredRoutes;
     });
@@ -263,15 +265,18 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
           textOffset: const Offset(0, -2),
         ),
       );
-      _stopSymbols.add(symbol);
+      _stopSymbols['stop_$i'] = symbol;
     }
 
     // Fit camera to route bounds
-    final pathForBounds = routePath.isNotEmpty ? routePath : route.stops.map((s) => s.coordinates).toList();
+    final pathForBounds = routePath.isNotEmpty
+        ? routePath
+        : route.stops.map((s) => s.coordinates).toList();
     if (pathForBounds.isNotEmpty) {
       final bounds = _calculateRouteBounds(pathForBounds);
       await _mapController!.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, left: 50, top: 50, right: 50, bottom: 50),
+        CameraUpdate.newLatLngBounds(bounds,
+            left: 50, top: 50, right: 50, bottom: 50),
       );
     }
   }
@@ -305,7 +310,7 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
     }
 
     // Remove stop symbols
-    for (final symbol in _stopSymbols) {
+    for (final symbol in _stopSymbols.values) {
       await _mapController!.removeSymbol(symbol);
     }
     _stopSymbols.clear();
@@ -321,7 +326,8 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF19C6FF)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Track Vehicle', style: TextStyle(color: Colors.white)),
+        title:
+            const Text('Track Vehicle', style: TextStyle(color: Colors.white)),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -335,21 +341,25 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
             _buildMapPlaceholder(),
             const SizedBox(height: 8),
             Text(
-              _selectedRoute != null 
-                ? 'Showing Route ${_selectedRoute!.routeId}' 
-                : 'Search for a bus route (3C or 3D)',
+              _selectedRoute != null
+                  ? 'Showing Route ${_selectedRoute!.routeId}'
+                  : 'Search for a bus route (3C or 3D)',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
             const SizedBox(height: 16),
             if (_selectedRoute != null) _buildBusInfoCard(),
             if (_selectedRoute != null) const SizedBox(height: 16),
-            if (_selectedRoute != null) Row(
-              children: [
-                Expanded(child: _smallAction('Share ETA', Icons.share, () {})),
-                const SizedBox(width: 12),
-                Expanded(child: _smallAction('Set Reminder', Icons.schedule, () {})),
-              ],
-            ),
+            if (_selectedRoute != null)
+              Row(
+                children: [
+                  Expanded(
+                      child: _smallAction('Share ETA', Icons.share, () {})),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child:
+                          _smallAction('Set Reminder', Icons.schedule, () {})),
+                ],
+              ),
             const SizedBox(height: 16),
             _buildNearbyBusesSection(),
           ],
@@ -364,7 +374,7 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: const Color(0xFF101426),
-        border: Border.all(color: const Color(0xFF19C6FF).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF19C6FF).withValues(alpha: 0.3)),
       ),
       child: ListView.builder(
         shrinkWrap: true,
@@ -412,7 +422,10 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
         borderRadius: BorderRadius.circular(14),
         color: const Color(0xFF101426),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF19C6FF).withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: const Color(0xFF19C6FF).withValues(alpha: 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: TextField(
@@ -423,7 +436,8 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
           hintText: 'Enter Bus ID or Route Number (3C, 3D)',
           hintStyle: const TextStyle(color: Colors.white54),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, color: Colors.white54),
@@ -452,8 +466,21 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
           MapboxMap(
             styleString: MapboxStyles.DARK,
             myLocationEnabled: false,
-            onMapCreated: (controller) {
+            onMapCreated: (controller) async {
               _mapController = controller;
+
+              // Load custom bus icon
+              try {
+                final ByteData bytes =
+                    await rootBundle.load('assets/icons/cute-bus.png');
+                final Uint8List list = bytes.buffer.asUint8List();
+                await controller.addImage('custom-bus-icon', list);
+                print('✅ Custom bus icon loaded in track vehicle screen');
+              } catch (e) {
+                print(
+                    '⚠️ Failed to load custom bus icon in track vehicle screen: $e');
+              }
+
               _goToCurrentUserLocation();
             },
             initialCameraPosition: CameraPosition(target: _center, zoom: 11),
@@ -466,14 +493,16 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
                 FloatingActionButton(
                   heroTag: 'trackZoomIn',
                   mini: true,
-                  onPressed: () => _mapController?.animateCamera(CameraUpdate.zoomIn()),
+                  onPressed: () =>
+                      _mapController?.animateCamera(CameraUpdate.zoomIn()),
                   child: const Icon(Icons.add),
                 ),
                 const SizedBox(height: 8),
                 FloatingActionButton(
                   heroTag: 'trackZoomOut',
                   mini: true,
-                  onPressed: () => _mapController?.animateCamera(CameraUpdate.zoomOut()),
+                  onPressed: () =>
+                      _mapController?.animateCamera(CameraUpdate.zoomOut()),
                   child: const Icon(Icons.remove),
                 ),
               ],
@@ -500,12 +529,16 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
               Expanded(
                 child: Text(
                   'Bus ${_selectedRoute?.routeId ?? 'BUS-2834'}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
-              Text('3 min', style: TextStyle(color: Color(0xFF19C6FF), fontWeight: FontWeight.w600)),
+              Text('3 min',
+                  style: TextStyle(
+                      color: Color(0xFF19C6FF), fontWeight: FontWeight.w600)),
               SizedBox(width: 4),
-              Text('ETA', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Text('ETA',
+                  style: TextStyle(color: Colors.white54, fontSize: 12)),
             ],
           ),
           const SizedBox(height: 2),
@@ -532,19 +565,22 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
     );
   }
 
-  Widget _infoChip(String value, String label, {Color bg = const Color(0xFF19C6FF)}) {
+  Widget _infoChip(String value, String label,
+      {Color bg = const Color(0xFF19C6FF)}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: bg.withOpacity(0.15),
+          color: bg.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           children: [
-            Text(value, style: TextStyle(color: bg, fontWeight: FontWeight.w600)),
+            Text(value,
+                style: TextStyle(color: bg, fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+            Text(label,
+                style: const TextStyle(color: Colors.white54, fontSize: 10)),
           ],
         ),
       ),
@@ -557,22 +593,29 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
       children: [
         Row(
           children: [
-            const Icon(Icons.directions_bus, color: Color(0xFF19C6FF), size: 20),
+            const Icon(Icons.directions_bus,
+                color: Color(0xFF19C6FF), size: 20),
             const SizedBox(width: 8),
             const Text(
               'Live Buses Nearby',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
             ),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF19C6FF).withOpacity(0.2),
+                color: const Color(0xFF19C6FF).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '${_nearbyBuses.length}',
-                style: const TextStyle(color: Color(0xFF19C6FF), fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                    color: Color(0xFF19C6FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -584,7 +627,8 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF101426),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF19C6FF).withOpacity(0.3)),
+              border:
+                  Border.all(color: const Color(0xFF19C6FF).withValues(alpha: 0.3)),
             ),
             child: const Center(
               child: Text(
@@ -606,7 +650,8 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF101426),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _getBusColor(bus.busType).withOpacity(0.3)),
+                  border: Border.all(
+                      color: _getBusColor(bus.busType).withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -614,7 +659,7 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: _getBusColor(bus.busType).withOpacity(0.2),
+                        color: _getBusColor(bus.busType).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -630,20 +675,24 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
                         children: [
                           Text(
                             bus.busName,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '${bus.userName} • ${bus.speed.toStringAsFixed(1)} km/h',
-                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 12),
                           ),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _getBusColor(bus.busType).withOpacity(0.2),
+                        color: _getBusColor(bus.busType).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -690,7 +739,8 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
           children: [
             Icon(icon, color: const Color(0xFF19C6FF), size: 20),
             const SizedBox(height: 4),
-            Text(title, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            Text(title,
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
           ],
         ),
       ),

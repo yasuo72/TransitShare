@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mapbox_gl/mapbox_gl.dart';
 import '../services/location_service.dart';
 import '../services/auth_service.dart';
 import '../services/navigation_state_service.dart';
+import '../services/notification_service.dart';
 import '../models/user_model.dart';
 import '../widgets/gradient_button.dart';
 
@@ -89,13 +92,15 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
 
     // Listen for location updates from other users
     LocationService.listenForLocationUpdates((locationShare) {
-      print('📍 Received location update: ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
+      print(
+          '📍 Received location update: ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
       _addUserMarker(locationShare);
     });
 
     // Listen for own location updates to show on map
     LocationService.setOnLocationUpdateCallback((locationShare) {
-      print('📍 Own location update: ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
+      print(
+          '📍 Own location update: ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
       _addUserMarker(locationShare);
     });
 
@@ -213,18 +218,45 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
   }
 
   void _requestNearbyBusesTimer() {
-    _nearbyBusesTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+    _nearbyBusesTimer =
+        Timer.periodic(const Duration(seconds: 10), (timer) async {
       if (mounted && _isSharing) {
         final position = await LocationService.getCurrentLocation();
         if (position != null) {
-          LocationService.requestNearbyBuses(position.latitude, position.longitude);
+          LocationService.requestNearbyBuses(
+              position.latitude, position.longitude);
         }
       }
     });
   }
 
-  void _onMapCreated(MapboxMapController controller) {
+  void _onMapCreated(MapboxMapController controller) async {
     _mapController = controller;
+
+    // Load custom bus icon
+    try {
+      final ByteData bytes = await rootBundle.load('assets/icons/cute-bus.png');
+      final Uint8List list = bytes.buffer.asUint8List();
+      await controller.addImage('custom-bus-icon', list);
+      print('✅ Custom bus icon loaded successfully');
+    } catch (e) {
+      print('⚠️ Failed to load custom bus icon: $e');
+    }
+  }
+
+  String _getBusTypeColor(String busType) {
+    switch (busType.toLowerCase()) {
+      case 'express':
+      case 'ac':
+        return '#FF6B35'; // Orange
+      case 'local':
+      case 'city':
+        return '#3498DB'; // Blue
+      case 'school':
+        return '#F1C40F'; // Gold
+      default:
+        return '#2ECC71'; // Green for regular
+    }
   }
 
   Future<void> _toggleLocationSharing() async {
@@ -252,9 +284,21 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
           busType: 'regular',
         );
 
+        // Send notification to nearby users
+        final position = await LocationService.getCurrentLocation();
+        if (position != null) {
+          await NotificationService.sendLocationSharingNotification(
+            busName: _busNameController.text.trim(),
+            route: 'Current Route', // You can make this dynamic based on user input
+            latitude: position.latitude,
+            longitude: position.longitude,
+          );
+        }
+
         // Start requesting location history updates
         if (_currentUser != null) {
-          _locationHistoryTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+          _locationHistoryTimer =
+              Timer.periodic(const Duration(seconds: 15), (timer) {
             if (!mounted || !_isSharing) {
               timer.cancel();
               return;
@@ -275,9 +319,13 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
       await LocationService.stopLocationSharing();
 
       // Clear route visualization
-      if (_routeLine != null && _mapController != null) {
-        await _mapController!.removeLine(_routeLine!);
-        _routeLine = null;
+      if (_routeLine != null && _mapController != null && mounted) {
+        try {
+          await _mapController!.removeLine(_routeLine!);
+          _routeLine = null;
+        } catch (e) {
+          debugPrint('Error removing route line: $e');
+        }
       }
 
       // Stop timers
@@ -304,12 +352,13 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
   }
 
   Future<void> _addUserMarker(LocationShare locationShare) async {
-    if (_mapController == null) {
-      print('❌ Cannot add marker - map controller is null');
+    if (_mapController == null || !mounted) {
+      print('❌ Cannot add marker - map controller is null or widget disposed');
       return;
     }
 
-    print('🗺️ Adding marker for ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
+    print(
+        '🗺️ Adding marker for ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
 
     try {
       // Remove existing marker for this specific user only
@@ -317,29 +366,32 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
         // We'll need to track markers by userId - for now remove all to prevent duplicates
         return true;
       });
-      
+
       if (existingMarkerIndex != -1) {
         try {
-          await _mapController!.removeSymbol(_userMarkers[existingMarkerIndex]);
-          _userMarkers.removeAt(existingMarkerIndex);
-          print('🗑️ Removed existing marker');
+          if (_mapController != null && mounted) {
+            await _mapController!.removeSymbol(_userMarkers[existingMarkerIndex]);
+            _userMarkers.removeAt(existingMarkerIndex);
+            print('🗑️ Removed existing marker');
+          }
         } catch (e) {
           print('Error removing existing marker: $e');
         }
       }
 
-      // Add new marker with custom bus icon
-      final symbol = await _mapController!.addSymbol(
+      // Add new marker with custom 3D bus icon
+      if (_mapController != null && mounted) {
+        final symbol = await _mapController!.addSymbol(
         SymbolOptions(
           geometry: LatLng(locationShare.latitude, locationShare.longitude),
-          iconImage: 'bus-15',
-          iconSize: 2.0,
+          iconImage: 'custom-bus-icon',
+          iconSize: 0.05,
           textField: locationShare.busName,
           textSize: 12,
-          textColor: '#FFFFFF',
-          textHaloColor: '#000000',
+          textColor: _getBusTypeColor(locationShare.busType),
+          textHaloColor: '#FFFFFF',
           textHaloWidth: 2.0,
-          textOffset: const Offset(0, 2.5),
+          textOffset: const Offset(0, 2.0),
           textAnchor: 'top',
         ),
       );
@@ -350,19 +402,22 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
       setState(() {
         _nearbyUsers.removeWhere((user) => user.userId == locationShare.userId);
         _nearbyUsers.add(locationShare);
-        print('📊 Updated nearby users list - now ${_nearbyUsers.length} users');
+        print(
+            '📊 Updated nearby users list - now ${_nearbyUsers.length} users');
       });
-      
-      // Center map on the new marker
-      await _mapController!.animateCamera(
-        CameraUpdate.newLatLng(LatLng(locationShare.latitude, locationShare.longitude)),
-      );
-      
+
+        // Center map on the new marker
+        if (_mapController != null && mounted) {
+          await _mapController!.animateCamera(
+            CameraUpdate.newLatLng(
+                LatLng(locationShare.latitude, locationShare.longitude)),
+          );
+        }
+      }
     } catch (e) {
       print('❌ Error adding user marker: $e');
     }
   }
-
 
   Color _getBusColor(String busType) {
     switch (busType) {
@@ -412,7 +467,7 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
                       color: const Color(0xFF101426),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: const Color(0xFF19C6FF).withOpacity(0.3)),
+                          color: const Color(0xFF19C6FF).withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
@@ -452,7 +507,7 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
                     color: const Color(0xFF101426),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF19C6FF).withOpacity(0.2),
+                        color: const Color(0xFF19C6FF).withValues(alpha: 0.2),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -491,7 +546,7 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF26C281).withOpacity(0.1),
+                      color: const Color(0xFF26C281).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFF26C281)),
                     ),
@@ -562,19 +617,21 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border:
-                    Border.all(color: const Color(0xFF19C6FF).withOpacity(0.3)),
+                    Border.all(color: const Color(0xFF19C6FF).withValues(alpha: 0.3)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: MapboxMap(
-                  accessToken: 'sk.eyJ1IjoieWFzdW83MiIsImEiOiJjbWY0bWloenUwNzlnMnFxdjhjdGF5YXdmIn0.IZ3zeKo_VIt4jkxDczcwNw',
+                  accessToken:
+                      'sk.eyJ1IjoieWFzdW83MiIsImEiOiJjbWY0bWloenUwNzlnMnFxdjhjdGF5YXdmIn0.IZ3zeKo_VIt4jkxDczcwNw',
                   onMapCreated: _onMapCreated,
                   initialCameraPosition: const CameraPosition(
                     target: LatLng(28.6139, 77.2090), // Delhi coordinates
                     zoom: 12.0,
                   ),
                   styleString: MapboxStyles.DARK,
-                  myLocationEnabled: false, // Completely disabled to prevent crashes
+                  myLocationEnabled:
+                      false, // Completely disabled to prevent crashes
                   myLocationTrackingMode: MyLocationTrackingMode.None,
                   myLocationRenderMode: MyLocationRenderMode.NORMAL,
                   compassEnabled: true,
@@ -624,10 +681,10 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
                             color: const Color(0xFF101426),
                             borderRadius: BorderRadius.circular(8),
                             border:
-                                Border.all(color: busColor.withOpacity(0.5)),
+                                Border.all(color: busColor.withValues(alpha: 0.5)),
                             boxShadow: [
                               BoxShadow(
-                                color: busColor.withOpacity(0.2),
+                                color: busColor.withValues(alpha: 0.2),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -635,32 +692,35 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.directions_bus,
-                                  color: busColor, size: 20),
-                              const SizedBox(height: 4),
-                              Text(
-                                user.busName,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                  color: busColor, size: 16),
                               const SizedBox(height: 2),
+                              Flexible(
+                                child: Text(
+                                  user.busName,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
                               Text(
                                 '${user.speed.toInt()} km/h',
                                 style: TextStyle(
                                     color: busColor,
-                                    fontSize: 10,
+                                    fontSize: 8,
                                     fontWeight: FontWeight.w500),
                               ),
                               Text(
                                 '${distance.toStringAsFixed(1)} km',
                                 style: const TextStyle(
-                                    color: Colors.white54, fontSize: 9),
+                                    color: Colors.white54, fontSize: 8),
                               ),
                             ],
                           ),
@@ -677,7 +737,6 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
     );
   }
 
-
   double _calculateDistance(double lat, double lng) {
     // Simple distance calculation - in a real app, use Geolocator.distanceBetween
     // For now, return a mock distance based on coordinates difference
@@ -692,11 +751,15 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
   }
 
   Future<void> _drawRouteOnMap(Map<String, dynamic> routeData) async {
-    if (_mapController == null || routeData['route'] == null) return;
+    if (_mapController == null || routeData['route'] == null || !mounted) return;
 
     // Remove existing route line
-    if (_routeLine != null) {
-      await _mapController!.removeLine(_routeLine!);
+    if (_routeLine != null && _mapController != null && mounted) {
+      try {
+        await _mapController!.removeLine(_routeLine!);
+      } catch (e) {
+        debugPrint('Error removing existing route line: $e');
+      }
     }
 
     final List<dynamic> routePoints = routeData['route'];
@@ -708,15 +771,19 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
     }).toList();
 
     // Add route line to map
-    _routeLine = await _mapController!.addLine(
-      LineOptions(
-        geometry: coordinates,
-        lineColor:
-            '#${_getBusColor(routeData['busType'] ?? 'regular').value.toRadixString(16).substring(2)}',
-        lineWidth: 4.0,
-        lineOpacity: 0.8,
-      ),
-    );
+    try {
+      _routeLine = await _mapController!.addLine(
+        LineOptions(
+          geometry: coordinates,
+          lineColor:
+              '#${_getBusColor(routeData['busType'] ?? 'regular').value.toRadixString(16).substring(2)}',
+          lineWidth: 4.0,
+          lineOpacity: 0.8,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error adding route line: $e');
+    }
 
     setState(() {
       _showRouteTrail = true;
@@ -727,9 +794,13 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
     if (_currentUser != null) {
       if (_showRouteTrail) {
         // Hide route
-        if (_routeLine != null && _mapController != null) {
-          _mapController!.removeLine(_routeLine!);
-          _routeLine = null;
+        if (_routeLine != null && _mapController != null && mounted) {
+          try {
+            _mapController!.removeLine(_routeLine!);
+            _routeLine = null;
+          } catch (e) {
+            debugPrint('Error hiding route: $e');
+          }
         }
         setState(() {
           _showRouteTrail = false;
@@ -746,17 +817,17 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
     if (_isSharing) {
       await LocationService.stopLocationSharing();
     }
-    
+
     // Clear location sharing state
     await NavigationStateService.saveLocationSharingState(
       isSharing: false,
       busName: null,
       busType: null,
     );
-    
+
     // Save home as the last screen
     await NavigationStateService.saveLastScreen('/home');
-    
+
     // Navigate back to home screen
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/home');

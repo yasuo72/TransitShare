@@ -1,17 +1,143 @@
+class UserProfile {
+  final String? avatar;
+  final String? bio;
+  final String? phone;
+  final DateTime? dateOfBirth;
+  final String? gender;
+
+  UserProfile({
+    this.avatar,
+    this.bio,
+    this.phone,
+    this.dateOfBirth,
+    this.gender,
+  });
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      avatar: json['avatar'],
+      bio: json['bio'],
+      phone: json['phone'],
+      dateOfBirth: json['dateOfBirth'] != null ? DateTime.parse(json['dateOfBirth']) : null,
+      gender: json['gender'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'avatar': avatar,
+      'bio': bio,
+      'phone': phone,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'gender': gender,
+    };
+  }
+}
+
+class UserPreferences {
+  final bool notifications;
+  final bool locationSharing;
+  final String theme;
+  final String language;
+  final String privacyLevel;
+
+  UserPreferences({
+    this.notifications = true,
+    this.locationSharing = true,
+    this.theme = 'dark',
+    this.language = 'en',
+    this.privacyLevel = 'public',
+  });
+
+  factory UserPreferences.fromJson(Map<String, dynamic> json) {
+    return UserPreferences(
+      notifications: json['notifications'] ?? true,
+      locationSharing: json['locationSharing'] ?? true,
+      theme: json['theme'] ?? 'dark',
+      language: json['language'] ?? 'en',
+      privacyLevel: json['privacyLevel'] ?? 'public',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'notifications': notifications,
+      'locationSharing': locationSharing,
+      'theme': theme,
+      'language': language,
+      'privacyLevel': privacyLevel,
+    };
+  }
+}
+
+class UserStatistics {
+  final int totalTrips;
+  final double totalDistance;
+  final int totalDuration;
+  final double averageSpeed;
+  final DateTime? lastActiveDate;
+
+  UserStatistics({
+    this.totalTrips = 0,
+    this.totalDistance = 0.0,
+    this.totalDuration = 0,
+    this.averageSpeed = 0.0,
+    this.lastActiveDate,
+  });
+
+  factory UserStatistics.fromJson(Map<String, dynamic> json) {
+    return UserStatistics(
+      totalTrips: json['totalTrips'] ?? 0,
+      totalDistance: (json['totalDistance'] ?? 0).toDouble(),
+      totalDuration: json['totalDuration'] ?? 0,
+      averageSpeed: (json['averageSpeed'] ?? 0).toDouble(),
+      lastActiveDate: json['lastActiveDate'] != null ? DateTime.parse(json['lastActiveDate']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'totalTrips': totalTrips,
+      'totalDistance': totalDistance,
+      'totalDuration': totalDuration,
+      'averageSpeed': averageSpeed,
+      'lastActiveDate': lastActiveDate?.toIso8601String(),
+    };
+  }
+}
+
 class User {
   final String id;
   final String name;
   final String email;
   final int points;
-  final double walletBalance;
+  final List<String> badges;
+  final int tipsReceived;
+  final UserProfile? profile;
+  final UserPreferences? preferences;
+  final UserStatistics? statistics;
+  final bool isActive;
+  final bool isVerified;
+  final DateTime? lastLogin;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
   final String? token;
 
   User({
     required this.id,
     required this.name,
     required this.email,
-    required this.points,
-    required this.walletBalance,
+    this.points = 0,
+    this.badges = const [],
+    this.tipsReceived = 0,
+    this.profile,
+    this.preferences,
+    this.statistics,
+    this.isActive = true,
+    this.isVerified = false,
+    this.lastLogin,
+    this.createdAt,
+    this.updatedAt,
     this.token,
   });
 
@@ -21,7 +147,16 @@ class User {
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       points: json['points'] ?? 0,
-      walletBalance: (json['walletBalance'] ?? 0).toDouble(),
+      badges: List<String>.from(json['badges'] ?? []),
+      tipsReceived: json['tipsReceived'] ?? 0,
+      profile: json['profile'] != null ? UserProfile.fromJson(json['profile']) : null,
+      preferences: json['preferences'] != null ? UserPreferences.fromJson(json['preferences']) : null,
+      statistics: json['statistics'] != null ? UserStatistics.fromJson(json['statistics']) : null,
+      isActive: json['isActive'] ?? true,
+      isVerified: json['isVerified'] ?? false,
+      lastLogin: json['lastLogin'] != null ? DateTime.parse(json['lastLogin']) : null,
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
       token: json['token'],
     );
   }
@@ -32,7 +167,16 @@ class User {
       'name': name,
       'email': email,
       'points': points,
-      'walletBalance': walletBalance,
+      'badges': badges,
+      'tipsReceived': tipsReceived,
+      'profile': profile?.toJson(),
+      'preferences': preferences?.toJson(),
+      'statistics': statistics?.toJson(),
+      'isActive': isActive,
+      'isVerified': isVerified,
+      'lastLogin': lastLogin?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'token': token,
     };
   }

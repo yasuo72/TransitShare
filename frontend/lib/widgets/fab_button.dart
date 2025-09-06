@@ -18,7 +18,7 @@ class FabButton extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: LinearGradient(colors: colors),
           boxShadow: [
-            BoxShadow(color: colors.last.withOpacity(0.4), blurRadius: MediaQuery.of(context).size.width * 0.03, offset: Offset(0, MediaQuery.of(context).size.width * 0.01))
+            BoxShadow(color: colors.last.withValues(alpha: 0.4), blurRadius: MediaQuery.of(context).size.width * 0.03, offset: Offset(0, MediaQuery.of(context).size.width * 0.01))
           ],
         ),
         child: Icon(icon, color: Colors.white, size: MediaQuery.of(context).size.width * 0.08),

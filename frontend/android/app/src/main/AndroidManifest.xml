@@ -4,11 +4,14 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <application
         android:label="transit_share"
         android:name="${applicationName}"
         android:enableOnBackInvokedCallback="true"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <receiver android:name="com.mapbox.mapboxsdk.module.telemetry.TelemetryReceiver"
             android:exported="false">
             <intent-filter>
