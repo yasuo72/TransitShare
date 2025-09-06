@@ -29,6 +29,23 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
+// In-memory storage for quick access
+const locationHistory = new Map();
+
+// Helper function to calculate distance between two points
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in kilometers
+  return distance;
+}
+
 // Socket IO connection for real-time location broadcast with user state management
 io.on('connection', (socket) => {
   console.log('New WS connection', socket.id);
@@ -153,13 +170,16 @@ io.on('connection', (socket) => {
 
       await dbHistory.save();
 
+      // Get user info for memory storage
+      const user = await User.findById(userId);
+      
       // Also maintain in-memory for quick access
       if (!locationHistory.has(userId)) {
         locationHistory.set(userId, {
           userId,
           busName,
           busType: busType || 'regular',
-          userName: user.name,
+          userName: user ? user.name : 'Unknown',
           route: [],
           startTime: dbHistory.startTime,
           totalDistance: 0,
@@ -184,15 +204,17 @@ io.on('connection', (socket) => {
         timestamp,
         busType: busType || 'regular',
         speed: speed || 0,
-        userName: user.name,
+        userName: user ? user.name : 'Unknown',
         isOnline: true,
       };
 
       // Get nearby users using state manager
       const nearbyUsers = UserStateManager.getNearbyUsers(userId, 10);
+      console.log(`📍 User ${userId} location: ${latitude}, ${longitude}`);
+      console.log(`👥 Found ${nearbyUsers.length} nearby users:`, nearbyUsers.map(u => `${u.userName} (${u.distance}km)`));
 
-      // Broadcast to all connected clients with nearby users data
-      socket.broadcast.emit('locationUpdate', {
+      // Broadcast to all connected clients including anonymous viewers
+      io.emit('locationUpdate', {
         ...locationData,
         nearbyUsers
       });
@@ -216,7 +238,7 @@ io.on('connection', (socket) => {
       // Award points to sharer (1 point per location share)
       await UserStateManager.updateUserPoints(userId, 1);
 
-      console.log(`Location shared by ${session.userName} (${busName}) - ${closeUsers.length} nearby users`);
+      console.log(`Location shared by ${session.userName} (${busName}) - ${nearbyUsers.length} total users, ${closeUsers.length} nearby users`);
     } catch (error) {
       console.error('Error handling location share:', error);
       socket.emit('error', { message: 'Failed to share location' });
@@ -230,7 +252,17 @@ io.on('connection', (socket) => {
       const session = UserStateManager.getUserSession(socket.id);
       
       if (!session) {
-        socket.emit('error', { message: 'Invalid session' });
+        // For anonymous viewers (like track vehicle screen), get all active users
+        const allActiveUsers = UserStateManager.getAllActiveUsers();
+        const nearbyBuses = allActiveUsers.map(user => ({
+          ...user.location,
+          userId: user.userId,
+          userName: user.userName,
+          distance: 0, // Default distance for anonymous viewers
+          eta: 0
+        }));
+        
+        socket.emit('nearbyBusesUpdate', nearbyBuses);
         return;
       }
 

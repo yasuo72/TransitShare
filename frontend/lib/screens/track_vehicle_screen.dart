@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/gradient_button.dart';
 import 'package:mapbox_gl/mapbox_gl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/bus_route.dart';
+import '../models/user_model.dart';
 import '../services/bus_route_service.dart';
 import '../services/directions_service.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class TrackVehicleScreen extends StatefulWidget {
   const TrackVehicleScreen({super.key});
@@ -25,19 +28,134 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
   Line? _routeLine;
   bool _isSearching = false;
   List<BusRoute> _searchResults = [];
+  
+  // Real-time location sharing
+  io.Socket? _socket;
+  List<LocationShare> _nearbyBuses = [];
+  Map<String, Symbol> _busMarkers = {};
 
   @override
   void initState() {
     super.initState();
     _requestLocationPermission();
     _searchController.addListener(_onSearchChanged);
+    _connectToSocket();
   }
 
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _socket?.disconnect();
+    _socket?.dispose();
     super.dispose();
+  }
+
+  void _connectToSocket() {
+    _socket = io.io('http://192.168.1.9:5000', <String, dynamic>{
+      'transports': ['websocket', 'polling'],
+      'autoConnect': false,
+    });
+    
+    _socket!.connect();
+    
+    _socket!.on('connect', (_) {
+      print('🔌 Track Vehicle: Connected to socket server');
+      // Don't join as user, just request nearby buses directly
+      _requestNearbyBuses();
+    });
+    
+    _socket!.on('locationUpdate', (data) {
+      print('📍 Track Vehicle: Received location update: $data');
+      _handleLocationUpdate(data);
+    });
+    
+    _socket!.on('nearbyBusesUpdate', (data) {
+      print('🚌 Track Vehicle: Received nearby buses: $data');
+      _handleNearbyBuses(data);
+    });
+  }
+
+  void _requestNearbyBuses() {
+    if (_socket != null && _socket!.connected) {
+      _socket!.emit('getNearbyBuses', {
+        'latitude': _center.latitude,
+        'longitude': _center.longitude,
+      });
+      
+      // Set up periodic requests for live updates
+      Timer.periodic(const Duration(seconds: 5), (timer) {
+        if (_socket != null && _socket!.connected && mounted) {
+          _socket!.emit('getNearbyBuses', {
+            'latitude': _center.latitude,
+            'longitude': _center.longitude,
+          });
+        } else {
+          timer.cancel();
+        }
+      });
+    }
+  }
+
+  void _handleLocationUpdate(dynamic data) async {
+    if (_mapController == null || !mounted) return;
+    
+    final locationShare = LocationShare.fromJson(data);
+    await _addBusMarker(locationShare);
+  }
+
+  void _handleNearbyBuses(dynamic data) {
+    if (!mounted) return;
+    
+    final List<dynamic> busesData = data is List ? data : [];
+    final buses = busesData.map((bus) => LocationShare.fromJson(bus)).toList();
+    
+    setState(() {
+      _nearbyBuses = buses;
+    });
+    
+    // Add markers for all nearby buses
+    for (final bus in buses) {
+      _addBusMarker(bus);
+    }
+  }
+
+  Future<void> _addBusMarker(LocationShare locationShare) async {
+    if (_mapController == null) return;
+    
+    try {
+      // Remove existing marker for this user
+      if (_busMarkers.containsKey(locationShare.userId)) {
+        await _mapController!.removeSymbol(_busMarkers[locationShare.userId]!);
+      }
+      
+      // Add new marker
+      final symbol = await _mapController!.addSymbol(
+        SymbolOptions(
+          geometry: LatLng(locationShare.latitude, locationShare.longitude),
+          iconImage: 'bus-15',
+          iconSize: 2.0,
+          textField: locationShare.busName,
+          textSize: 12,
+          textColor: '#FFFFFF',
+          textHaloColor: '#000000',
+          textHaloWidth: 2.0,
+          textOffset: const Offset(0, 2.5),
+          textAnchor: 'top',
+        ),
+      );
+      
+      _busMarkers[locationShare.userId] = symbol;
+      
+      // Update nearby buses list
+      setState(() {
+        _nearbyBuses.removeWhere((bus) => bus.userId == locationShare.userId);
+        _nearbyBuses.add(locationShare);
+      });
+      
+    } catch (e) {
+      print('❌ Error adding bus marker: $e');
+    }
   }
 
   Future<void> _requestLocationPermission() async {
@@ -232,6 +350,8 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
                 Expanded(child: _smallAction('Set Reminder', Icons.schedule, () {})),
               ],
             ),
+            const SizedBox(height: 16),
+            _buildNearbyBusesSection(),
           ],
         ),
       ),
@@ -429,6 +549,132 @@ class _TrackVehicleScreenState extends State<TrackVehicleScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildNearbyBusesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.directions_bus, color: Color(0xFF19C6FF), size: 20),
+            const SizedBox(width: 8),
+            const Text(
+              'Live Buses Nearby',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF19C6FF).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_nearbyBuses.length}',
+                style: const TextStyle(color: Color(0xFF19C6FF), fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_nearbyBuses.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF101426),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF19C6FF).withOpacity(0.3)),
+            ),
+            child: const Center(
+              child: Text(
+                'No buses sharing location nearby',
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _nearbyBuses.length,
+            itemBuilder: (context, index) {
+              final bus = _nearbyBuses[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF101426),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _getBusColor(bus.busType).withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _getBusColor(bus.busType).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.directions_bus,
+                        color: _getBusColor(bus.busType),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            bus.busName,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${bus.userName} • ${bus.speed.toStringAsFixed(1)} km/h',
+                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getBusColor(bus.busType).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        bus.busType.toUpperCase(),
+                        style: TextStyle(
+                          color: _getBusColor(bus.busType),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Color _getBusColor(String busType) {
+    switch (busType) {
+      case 'express':
+        return const Color(0xFFFF6B35); // Orange for express
+      case 'local':
+        return const Color(0xFF19C6FF); // Blue for local
+      case 'school':
+        return const Color(0xFFFFD700); // Gold for school
+      default:
+        return const Color(0xFF26C281); // Green for regular
+    }
   }
 
   Widget _smallAction(String title, IconData icon, VoidCallback onTap) {

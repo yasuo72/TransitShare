@@ -23,6 +23,7 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
   User? _currentUser;
   bool _isConnected = false;
   int _onlineUsersCount = 0;
+  Set<String> _onlineUserIds = {};
   Timer? _connectionTimer;
   Line? _routeLine;
   Map<String, dynamic>? _locationHistory;
@@ -88,11 +89,19 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
 
     // Listen for location updates from other users
     LocationService.listenForLocationUpdates((locationShare) {
+      print('📍 Received location update: ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
+      _addUserMarker(locationShare);
+    });
+
+    // Listen for own location updates to show on map
+    LocationService.setOnLocationUpdateCallback((locationShare) {
+      print('📍 Own location update: ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
       _addUserMarker(locationShare);
     });
 
     // Listen for nearby buses updates
     LocationService.listenForNearbyBuses((buses) {
+      print('🚌 Received nearby buses: ${buses.length} buses');
       _updateNearbyBusList(buses);
     });
 
@@ -108,8 +117,31 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
       _drawRouteOnMap(route);
     });
 
+    // Listen for user online/offline events
+    _setupUserPresenceListeners();
+
     // Request nearby buses periodically
     _requestNearbyBusesTimer();
+  }
+
+  void _setupUserPresenceListeners() {
+    // Listen for user online events
+    LocationService.listenForUserOnline((data) {
+      print('👤 User ${data['userName']} came online');
+      setState(() {
+        _onlineUserIds.add(data['userId']);
+        _onlineUsersCount = _onlineUserIds.length;
+      });
+    });
+
+    // Listen for user offline events
+    LocationService.listenForUserOffline((data) {
+      print('👋 User ${data['userName']} went offline');
+      setState(() {
+        _onlineUserIds.remove(data['userId']);
+        _onlineUsersCount = _onlineUserIds.length;
+      });
+    });
   }
 
   void _setupNotifications() {
@@ -124,7 +156,7 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
       if (mounted) {
         setState(() {
           _isConnected = LocationService.isConnected();
-          _onlineUsersCount = _nearbyUsers.length;
+          // Keep the actual online users count from Socket.IO events
         });
       }
     });
@@ -272,62 +304,65 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
   }
 
   Future<void> _addUserMarker(LocationShare locationShare) async {
-    if (_mapController == null) return;
+    if (_mapController == null) {
+      print('❌ Cannot add marker - map controller is null');
+      return;
+    }
+
+    print('🗺️ Adding marker for ${locationShare.busName} at ${locationShare.latitude}, ${locationShare.longitude}');
 
     try {
-      // Remove existing marker for this user
-      _userMarkers.removeWhere((marker) {
-        try {
-          _mapController!.removeSymbol(marker);
-        } catch (e) {
-          print('Error removing marker: $e');
-        }
+      // Remove existing marker for this specific user only
+      final existingMarkerIndex = _userMarkers.indexWhere((marker) {
+        // We'll need to track markers by userId - for now remove all to prevent duplicates
         return true;
       });
-
-      // Get appropriate bus icon based on bus type
-      String iconImage = _getBusIcon(locationShare.busType);
+      
+      if (existingMarkerIndex != -1) {
+        try {
+          await _mapController!.removeSymbol(_userMarkers[existingMarkerIndex]);
+          _userMarkers.removeAt(existingMarkerIndex);
+          print('🗑️ Removed existing marker');
+        } catch (e) {
+          print('Error removing existing marker: $e');
+        }
+      }
 
       // Add new marker with custom bus icon
       final symbol = await _mapController!.addSymbol(
         SymbolOptions(
           geometry: LatLng(locationShare.latitude, locationShare.longitude),
-          iconImage: iconImage,
-          iconSize: 1.5,
-          textField:
-              '${locationShare.busName}\n${locationShare.speed.toInt()} km/h',
-          textSize: 11,
+          iconImage: 'bus-15',
+          iconSize: 2.0,
+          textField: locationShare.busName,
+          textSize: 12,
           textColor: '#FFFFFF',
           textHaloColor: '#000000',
-          textHaloWidth: 1.0,
-          textOffset: const Offset(0, -3),
+          textHaloWidth: 2.0,
+          textOffset: const Offset(0, 2.5),
           textAnchor: 'top',
         ),
       );
 
       _userMarkers.add(symbol);
+      print('✅ Successfully added marker for ${locationShare.busName}');
 
       setState(() {
         _nearbyUsers.removeWhere((user) => user.userId == locationShare.userId);
         _nearbyUsers.add(locationShare);
+        print('📊 Updated nearby users list - now ${_nearbyUsers.length} users');
       });
+      
+      // Center map on the new marker
+      await _mapController!.animateCamera(
+        CameraUpdate.newLatLng(LatLng(locationShare.latitude, locationShare.longitude)),
+      );
+      
     } catch (e) {
-      print('Error adding user marker: $e');
+      print('❌ Error adding user marker: $e');
     }
   }
 
-  String _getBusIcon(String busType) {
-    switch (busType) {
-      case 'express':
-        return 'bus-15'; // Express bus icon
-      case 'local':
-        return 'bus-15'; // Local bus icon
-      case 'school':
-        return 'school-15'; // School bus icon
-      default:
-        return 'bus-15'; // Regular bus icon
-    }
-  }
 
   Color _getBusColor(String busType) {
     switch (busType) {
@@ -350,7 +385,7 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
         backgroundColor: const Color(0xFF000817),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF19C6FF)),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => _navigateBackToHome(),
         ),
         title: Row(
           children: [
@@ -703,6 +738,28 @@ class _LocationSharingScreenState extends State<LocationSharingScreen> {
         // Show route
         LocationService.requestRouteVisualization(_currentUser!.id);
       }
+    }
+  }
+
+  void _navigateBackToHome() async {
+    // Clean up location sharing if active
+    if (_isSharing) {
+      await LocationService.stopLocationSharing();
+    }
+    
+    // Clear location sharing state
+    await NavigationStateService.saveLocationSharingState(
+      isSharing: false,
+      busName: null,
+      busType: null,
+    );
+    
+    // Save home as the last screen
+    await NavigationStateService.saveLastScreen('/home');
+    
+    // Navigate back to home screen
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/home');
     }
   }
 

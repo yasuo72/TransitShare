@@ -5,7 +5,7 @@ import '../models/user_model.dart';
 import 'navigation_state_service.dart';
 
 class AuthService {
-  // Replace 'YOUR_PC_IP' with your actual PC IP address (e.g., 192.168.1.100)
+  // Local development URL
   static const String baseUrl = 'http://192.168.1.9:5000/api/auth';
 
   // Login user

@@ -24,8 +24,8 @@ class LocationService {
       // Clean up existing socket if any
       await cleanup();
 
-      // Replace 'YOUR_PC_IP' with your actual PC IP address (e.g., 192.168.1.100)
-      _socket = IO.io('http://YOUR_PC_IP:5000', <String, dynamic>{
+      // Local development URL
+      _socket = IO.io('http://192.168.1.9:5000', <String, dynamic>{
         'transports': ['websocket', 'polling'],
         'autoConnect': true,
         'forceNew': true,
@@ -76,18 +76,27 @@ class LocationService {
   }
 
   static Function(Map<String, dynamic>)? _onBusApproaching;
+  static Function(LocationShare)? _onLocationUpdate;
 
   static void setOnBusApproachingCallback(
       Function(Map<String, dynamic>) callback) {
     _onBusApproaching = callback;
   }
 
+  static void setOnLocationUpdateCallback(
+      Function(LocationShare) callback) {
+    _onLocationUpdate = callback;
+  }
+
   static void _joinUser() async {
     if (_currentUser != null && _socket != null) {
-      _socket!.emit('userJoin', {
+      final joinData = {
         'userId': _currentUser!.id,
         'userName': _currentUser!.name,
-      });
+      };
+      
+      print('👤 Joining as user: ${joinData['userName']} (${joinData['userId']})');
+      _socket!.emit('userJoin', joinData);
     }
   }
 
@@ -152,6 +161,18 @@ class LocationService {
         (Position position) {
           _currentSpeed = position.speed;
           shareLocation(position.latitude, position.longitude, busName);
+          
+          // Also create a location share object for the current user to show on their own map
+          _onLocationUpdate?.call(LocationShare(
+            userId: _currentUserId!,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            busName: busName,
+            timestamp: DateTime.now(),
+            busType: _getBusType(busName),
+            speed: position.speed,
+            userName: _currentUser?.name ?? 'You',
+          ));
         },
         onError: (e) => print('❌ Location stream error: $e'),
         cancelOnError: false,
@@ -200,7 +221,7 @@ class LocationService {
   // Share location via socket
   static void shareLocation(double latitude, double longitude, String busName) {
     if (_socket != null && _socket!.connected) {
-      _socket!.emit('shareLocation', {
+      final locationData = {
         'userId': _currentUserId,
         'latitude': latitude,
         'longitude': longitude,
@@ -208,7 +229,13 @@ class LocationService {
         'timestamp': DateTime.now().toIso8601String(),
         'busType': _getBusType(busName),
         'speed': _currentSpeed ?? 0.0,
-      });
+        'userName': _currentUser?.name ?? 'Unknown',
+      };
+      
+      print('📤 Sending location: ${locationData['busName']} at ${locationData['latitude']}, ${locationData['longitude']}');
+      _socket!.emit('shareLocation', locationData);
+    } else {
+      print('❌ Cannot share location - socket not connected');
     }
   }
 
@@ -233,6 +260,28 @@ class LocationService {
         onLocationUpdate(locationShare);
       } catch (e) {
         print('Error parsing location update: $e');
+      }
+    });
+  }
+
+  // Listen for user online events
+  static void listenForUserOnline(Function(Map<String, dynamic>) onUserOnline) {
+    _socket?.on('userOnline', (data) {
+      try {
+        onUserOnline(Map<String, dynamic>.from(data));
+      } catch (e) {
+        print('Error parsing user online event: $e');
+      }
+    });
+  }
+
+  // Listen for user offline events
+  static void listenForUserOffline(Function(Map<String, dynamic>) onUserOffline) {
+    _socket?.on('userOffline', (data) {
+      try {
+        onUserOffline(Map<String, dynamic>.from(data));
+      } catch (e) {
+        print('Error parsing user offline event: $e');
       }
     });
   }

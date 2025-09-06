@@ -78,9 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _connectToSocket() {
-    // TODO: Replace YOUR_COMPUTER_IP with your actual local IP address
-    socket = io.io('http://192.168.28.224:5000', <String, dynamic>{
-      'transports': ['websocket'],
+    socket = io.io('http://192.168.1.9:5000', <String, dynamic>{
+      'transports': ['websocket', 'polling'],
       'autoConnect': false,
     });
     socket!.connect();
@@ -102,13 +101,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _lastUpdateTime = now;
 
-    final busId = data['busId'];
-    final lat = data['lat'];
-    final lng = data['lng'];
+    // Handle new location sharing format
+    final userId = data['userId'];
+    final busName = data['busName'] ?? data['busId'];
+    final lat = data['latitude'] ?? data['lat'];
+    final lng = data['longitude'] ?? data['lng'];
     final newPosition = LatLng(lat, lng);
 
-    if (_symbols.containsKey(busId)) {
-      final symbol = _symbols[busId]!;
+    if (_symbols.containsKey(userId)) {
+      final symbol = _symbols[userId]!;
       await _mapController!.updateSymbol(
         symbol,
         SymbolOptions(geometry: newPosition),
@@ -117,20 +118,22 @@ class _HomeScreenState extends State<HomeScreen> {
       final newSymbol = await _mapController!.addSymbol(
         SymbolOptions(
           geometry: newPosition,
-          iconImage: 'bus-15', // Standard Maki icon for a bus
-          textField: 'Bus $busId',
-          textOffset: const Offset(0, 2.0),
+          iconImage: 'bus-15',
+          iconSize: 2.0,
+          textField: busName,
+          textOffset: const Offset(0, 2.5),
           textColor: '#FFFFFF',
+          textHaloColor: '#000000',
+          textHaloWidth: 2.0,
           textSize: 12,
         ),
       );
       if (mounted) {
         setState(() {
-          _symbols[busId] = newSymbol;
+          _symbols[userId] = newSymbol;
         });
       }
     }
-    _mapController!.animateCamera(CameraUpdate.newLatLng(newPosition));
   }
 
   @override
