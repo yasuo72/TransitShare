@@ -5,7 +5,6 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
 import User from './models/User.js';
 import LocationHistory from './models/LocationHistory.js';
 import UserSession from './models/UserSession.js';
@@ -27,7 +26,6 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
 
 // Socket IO connection for real-time location broadcast with user state management
 io.on('connection', (socket) => {
