@@ -58,5 +58,41 @@ const getPointsHistory = async (req, res) => {
   const transactions = await Transaction.find({ toUserId: req.params.userId });
   res.json(transactions);
 };
+// @desc    Withdraw points from current user (simulate payout)
+// @route   POST /api/points/withdraw
+// @access  Private
+const withdrawPoints = async (req, res) => {
+  const { amount } = req.body;
 
-export { addPoints, tipSharer, getPointsHistory };
+  const numericAmount = Number(amount);
+
+  if (!numericAmount || numericAmount <= 0) {
+    res.status(400).json({ message: 'Invalid amount' });
+    return;
+  }
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
+
+  if (user.points < numericAmount) {
+    res.status(400).json({ message: 'Not enough points to withdraw' });
+    return;
+  }
+
+  user.points -= numericAmount;
+  await user.save();
+
+  await Transaction.create({
+    fromUserId: req.user._id,
+    toUserId: req.user._id,
+    points: numericAmount,
+  });
+
+  res.json({ points: user.points });
+};
+
+export { addPoints, tipSharer, getPointsHistory, withdrawPoints };

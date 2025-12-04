@@ -5,6 +5,8 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import pointsRoutes from './routes/pointsRoutes.js';
 import User from './models/User.js';
 import LocationHistory from './models/LocationHistory.js';
 import UserSession from './models/UserSession.js';
@@ -44,6 +46,8 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/points', pointsRoutes);
 
 // Socket IO connection for real-time location broadcast with user state management
 io.on('connection', (socket) => {
@@ -293,7 +297,8 @@ io.on('connection', (socket) => {
           averageSpeed: dbHistory.averageSpeed,
           duration: dbHistory.duration,
           startTime: dbHistory.startTime,
-          routePointsCount: dbHistory.route.length
+          routePointsCount: dbHistory.route.length,
+          route: dbHistory.route,
         });
       } else {
         socket.emit('locationHistoryUpdate', {
